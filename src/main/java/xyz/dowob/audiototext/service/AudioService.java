@@ -1,6 +1,8 @@
 package xyz.dowob.audiototext.service;
 
 import ws.schild.jave.EncoderException;
+import xyz.dowob.audiototext.dto.ModelInfoDTO;
+import xyz.dowob.audiototext.type.ModelType;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,6 +26,11 @@ public interface AudioService {
      *
      * @return 轉換後的文字
      */
-    List<Map<String, Object>> audioToText(File audioFile, String taskId) throws EncoderException, IOException;
+    List<Map<String, Object>> audioToText(File audioFile, File standardizedFile, ModelType type) throws EncoderException, IOException;
+
+    /**
+     * 取得目前可用的轉換模型列表
+     */
+    List<ModelInfoDTO> getAvailableModels();
 
 }

@@ -1,7 +1,7 @@
 audio:
   path:
-    model-path: ./model/your_model_name
-    temp-file-path: ./temp
+    model-directory: ./model/your_model_name
+    temp-file-directory: ./temp
 spring:
   application:
     name: AudioToText

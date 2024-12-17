@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
-import org.vosk.Model;
 import org.vosk.Recognizer;
-import ws.schild.jave.EncoderException;
 import xyz.dowob.audiototext.config.AudioProperties;
+import xyz.dowob.audiototext.dto.ModelInfoDTO;
 import xyz.dowob.audiototext.entity.TranscriptionSegment;
 import xyz.dowob.audiototext.service.AudioService;
-import xyz.dowob.audiototext.service.PreprocessingService;
+import xyz.dowob.audiototext.strategy.SpeechRecognitionStrategyStrategy;
+import xyz.dowob.audiototext.type.ModelType;
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -38,13 +38,11 @@ import java.util.Map;
 @Log4j2
 public class AudioServiceImp implements AudioService {
 
-    private final PreprocessingService preprocessingService;
-
     private final AudioProperties audioProperties;
 
     private final ObjectMapper objectMapper;
 
-    private final Model model;
+    private final SpeechRecognitionStrategyStrategy speechRecognitionStrategyStrategy;
 
     /**
      * 將音訊檔案轉換成文字
@@ -54,14 +52,22 @@ public class AudioServiceImp implements AudioService {
      * @return 轉換後的文字
      */
     @Override
-    public List<Map<String, Object>> audioToText(File audioFile, String taskId) throws EncoderException, IOException {
-        File standardizedAudioFile = preprocessingService.standardizeAudio(audioFile, taskId);
-        return convertTranscriptionSegments(transcribe(standardizedAudioFile));
+    public List<Map<String, Object>> audioToText(File audioFile, File standardizedAudioFile, ModelType type) {
+        return convertTranscriptionSegments(transcribe(standardizedAudioFile, type));
     }
 
-    private List<TranscriptionSegment> transcribe(File audioFile) {
+    /**
+     * 取得目前可用的轉換模型列表
+     */
+    @Override
+    public List<ModelInfoDTO> getAvailableModels() {
+        return speechRecognitionStrategyStrategy.getAvailableModels();
+    }
+
+    private List<TranscriptionSegment> transcribe(File audioFile, ModelType type) {
         try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
-             Recognizer recognizer = new Recognizer(model, audioProperties.getStandardFormat().sampleRate)) {
+             Recognizer recognizer = new Recognizer(speechRecognitionStrategyStrategy.getModel(type),
+                                                    audioProperties.getStandardFormat().sampleRate)) {
             recognizer.setWords(true);
             List<TranscriptionSegment> segments = new ArrayList<>();
             byte[] buffer = new byte[audioProperties.getThreshold().getChunkBufferSize()];
@@ -89,16 +95,12 @@ public class AudioServiceImp implements AudioService {
                     JsonNode words = jsonNode.get("result");
                     segments.add(createTranscriptionSegment(jsonNode.get("text").asText(),
                                                             (words.get(0).get("start").asDouble()),
-                                                            (words.get(words.size()-1).get("end").asDouble())));
+                                                            (words.get(words.size() - 1).get("end").asDouble())));
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
-    }
-    @Deprecated
-    private String formatTime(long milliseconds) {
-        return String.format("%.3f", milliseconds / 1000.0);
     }
 
     @Deprecated

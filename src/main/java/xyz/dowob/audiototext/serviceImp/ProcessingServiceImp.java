@@ -10,7 +10,7 @@ import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
 import xyz.dowob.audiototext.config.AudioProperties;
-import xyz.dowob.audiototext.service.PreprocessingService;
+import xyz.dowob.audiototext.service.ProcessingService;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,7 +27,7 @@ import java.nio.file.Path;
 @Service
 @Log4j2
 @RequiredArgsConstructor
-public class ProcessingServiceImp implements PreprocessingService {
+public class ProcessingServiceImp implements ProcessingService {
     private final AudioProperties audioProperties;
 
     /**
@@ -42,7 +42,7 @@ public class ProcessingServiceImp implements PreprocessingService {
      */
     @Override
     public File saveAudio(MultipartFile audioFile, String taskId) throws IOException {
-        File tempFileDirectory = Path.of(audioProperties.getPath().getTempFilePath()).toFile();
+        File tempFileDirectory = Path.of(audioProperties.getPath().getTempFileDirectory()).toFile();
         if (!tempFileDirectory.exists() && !tempFileDirectory.mkdirs()) {
             log.error("無法建立暫存檔案目錄");
             throw new IOException("無法建立暫存檔案目錄");
@@ -65,7 +65,7 @@ public class ProcessingServiceImp implements PreprocessingService {
      */
     @Override
     public File standardizeAudio(File tempAudioFile, String taskId) throws IOException, EncoderException {
-        File standardizeAudio = File.createTempFile(String.format("%s_standardize_", taskId), ".wav", Path.of(audioProperties.getPath().getTempFilePath()).toFile());
+        File standardizeAudio = File.createTempFile(String.format("%s_standardize_", taskId), ".wav", Path.of(audioProperties.getPath().getTempFileDirectory()).toFile());
         EncodingAttributes encoderAttributes = getEncodingAttributes();
         Encoder encoder = new Encoder();
         encoder.encode(new MultimediaObject(tempAudioFile), standardizeAudio, encoderAttributes);
@@ -92,7 +92,7 @@ public class ProcessingServiceImp implements PreprocessingService {
      */
     @Override
     public void deleteTempFile(String taskId) {
-        File tempFileDirectory = Path.of(audioProperties.getPath().getTempFilePath()).toFile();
+        File tempFileDirectory = Path.of(audioProperties.getPath().getTempFileDirectory()).toFile();
         File[] tempFiles = tempFileDirectory.listFiles((dir, name) -> name.contains(taskId));
         if (tempFiles != null) {
             for (File tempFile : tempFiles) {
@@ -104,4 +104,15 @@ public class ProcessingServiceImp implements PreprocessingService {
         }
     }
 
+    /**
+     * 處理轉譯後的文字內容，將標點符號還原
+     *
+     * @param text 轉譯後的原始文字內容
+     *
+     * @return 復原標點符號後的文字內容
+     */
+    @Override
+    public String punctuationRestore(String text) {
+        return "";
+    }
 }

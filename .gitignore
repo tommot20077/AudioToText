@@ -35,5 +35,4 @@ build/
 /src/speech_to_text.py
 /model/**
 /sample/**
-/src/SpeechToText.java
-/src/pom.xml
+/plugin/**

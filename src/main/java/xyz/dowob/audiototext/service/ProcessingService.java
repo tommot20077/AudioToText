@@ -11,12 +11,12 @@ import java.io.IOException;
  *
  * @author yuan
  * @program AudioToText
- * @ClassName ProcessingServiceImp
- * {@code @description}
- * {@code @create} 2024-12-12 14:07
- * {@code @Version} 1.0
+ * @ClassName ProcessingService
+ * @description
+ * @create 2024-12-12 14:48
+ * @Version 1.0
  **/
-public interface PreprocessingService {
+public interface ProcessingService {
 
     /**
      * 儲存音訊檔案
@@ -46,5 +46,11 @@ public interface PreprocessingService {
      */
     void deleteTempFile(String taskId);
 
+    /**
+     * 處理轉譯後的文字內容，將標點符號還原
+     * @param text 轉譯後的原始文字內容
+     * @return 復原標點符號後的文字內容
+     */
+    String punctuationRestore(String text);
 
 }
