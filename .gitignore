@@ -31,7 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
-/model/vosk-model-en-us-0.22.zip
-/model/vosk-recasepunc-en-0.22.zip
 /src/main/resources/application.properties
-/model/vosk-model-small-en-us-0.15.zip
+/src/speech_to_text.py
+/model/**
+/sample/**
+/src/SpeechToText.java
+/src/pom.xml

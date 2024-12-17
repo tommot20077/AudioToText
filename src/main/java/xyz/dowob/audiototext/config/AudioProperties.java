@@ -31,10 +31,9 @@ public class AudioProperties {
 
     @Data
     public static class StandardFormat {
-        public String format = "wav";
-        public float sampleRate = 16000.0f;
+        public int sampleRate = 16000;
         public int channel = 1;
-        public int bitRate = 16;
+        public int bitRate = 16000;
     }
 
     @Data

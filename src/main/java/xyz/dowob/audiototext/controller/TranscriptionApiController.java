@@ -50,8 +50,9 @@ public class TranscriptionApiController implements ApiController {
             return createResponseEntity(createSuccessResponse("/api/transcription", "轉換成功", result));
         } catch (Exception e) {
             log.error("轉換失敗: ", e);
-            preprocessingService.deleteTempFile(taskId);
             return createResponseEntity(createErrorResponse("/api/transcription", String.format("轉換失敗: %s", e.getMessage()), 400));
+        } finally {
+            preprocessingService.deleteTempFile(taskId);
         }
     }
 }

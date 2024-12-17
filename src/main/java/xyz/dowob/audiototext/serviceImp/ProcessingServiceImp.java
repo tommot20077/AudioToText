@@ -66,18 +66,23 @@ public class ProcessingServiceImp implements PreprocessingService {
     @Override
     public File standardizeAudio(File tempAudioFile, String taskId) throws IOException, EncoderException {
         File standardizeAudio = File.createTempFile(String.format("%s_standardize_", taskId), ".wav", Path.of(audioProperties.getPath().getTempFilePath()).toFile());
-        EncodingAttributes encoderAttributes = new EncodingAttributes();
-        AudioAttributes audioAttributes = new AudioAttributes();
-
-        audioAttributes.setCodec("pcm_s16le");
-        audioAttributes.setSamplingRate(16000);
-        audioAttributes.setChannels(1);
-        encoderAttributes.setAudioAttributes(audioAttributes);
-
+        EncodingAttributes encoderAttributes = getEncodingAttributes();
         Encoder encoder = new Encoder();
         encoder.encode(new MultimediaObject(tempAudioFile), standardizeAudio, encoderAttributes);
 
         return standardizeAudio;
+    }
+
+    private EncodingAttributes getEncodingAttributes() {
+        EncodingAttributes encoderAttributes = new EncodingAttributes();
+        AudioAttributes audioAttributes = new AudioAttributes();
+
+        audioAttributes.setCodec("pcm_s16le");
+        audioAttributes.setSamplingRate(audioProperties.getStandardFormat().getSampleRate());
+        audioAttributes.setChannels(audioProperties.getStandardFormat().getChannel());
+        audioAttributes.setBitRate(audioProperties.getStandardFormat().getBitRate());
+        encoderAttributes.setAudioAttributes(audioAttributes);
+        return encoderAttributes;
     }
 
     /**

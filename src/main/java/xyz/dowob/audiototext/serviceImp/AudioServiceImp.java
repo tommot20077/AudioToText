@@ -1,8 +1,9 @@
 package xyz.dowob.audiototext.serviceImp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.json.JSONObject;
 import org.springframework.stereotype.Service;
 import org.vosk.Model;
 import org.vosk.Recognizer;
@@ -12,13 +13,15 @@ import xyz.dowob.audiototext.entity.TranscriptionSegment;
 import xyz.dowob.audiototext.service.AudioService;
 import xyz.dowob.audiototext.service.PreprocessingService;
 
-import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 實現音檔處理的具體方法，實現AudioService接口
@@ -35,13 +38,11 @@ import java.util.*;
 @Log4j2
 public class AudioServiceImp implements AudioService {
 
-    private static final double SILENCE_THRESHOLD = 100.0;
-
-    private static final int SILENCE_DURATION_MS = 500;
-
     private final PreprocessingService preprocessingService;
 
     private final AudioProperties audioProperties;
+
+    private final ObjectMapper objectMapper;
 
     private final Model model;
 
@@ -55,87 +56,52 @@ public class AudioServiceImp implements AudioService {
     @Override
     public List<Map<String, Object>> audioToText(File audioFile, String taskId) throws EncoderException, IOException {
         File standardizedAudioFile = preprocessingService.standardizeAudio(audioFile, taskId);
-        List<Map<String, Object>> result = convertTranscriptionSegments(transcribe(standardizedAudioFile));
-        preprocessingService.deleteTempFile(taskId);
-        return result;
+        return convertTranscriptionSegments(transcribe(standardizedAudioFile));
     }
 
     private List<TranscriptionSegment> transcribe(File audioFile) {
-        List<TranscriptionSegment> transcriptionSegments = new ArrayList<>();
-        long currentTimeInSeconds = 0L;
-        long lastProcessedTime = 0L;
-        StringBuilder pendingText = new StringBuilder();
-
-
-        try (AudioInputStream ais = AudioSystem.getAudioInputStream(audioFile)) {
-            AudioFormat format = ais.getFormat();
-            float frameRate = format.getFrameRate();
-            int frameSize = format.getFrameSize();
-            int channels = format.getChannels();
-            int bitDepth = format.getSampleSizeInBits();
-
-            Recognizer recognizer = new Recognizer(model, audioProperties.getStandardFormat().sampleRate);
+        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
+             Recognizer recognizer = new Recognizer(model, audioProperties.getStandardFormat().sampleRate)) {
+            recognizer.setWords(true);
+            List<TranscriptionSegment> segments = new ArrayList<>();
             byte[] buffer = new byte[audioProperties.getThreshold().getChunkBufferSize()];
             int bytesRead;
-            Long firstTextStartTime = null;
 
-            while ((bytesRead = ais.read(buffer)) != -1) {
-                long bufferTimeInSeconds = (long) (bytesRead / (frameRate * frameSize / 8.0 / channels / bitDepth));
-
+            while ((bytesRead = audioInputStream.read(buffer)) != -1) {
                 if (recognizer.acceptWaveForm(buffer, bytesRead)) {
-                    JSONObject result = new JSONObject(recognizer.getResult());
-                    String text = result.getString("text").trim();
-
-                    if (!text.isEmpty()) {
-                        // 記錄第一個有效文本的開始時間
-                        if (firstTextStartTime == null) {
-                            firstTextStartTime = currentTimeInSeconds;
-                        } //todo 這裡有問題，firstTextStartTime跟currentTimeInSeconds一直相同
-
-                        // 添加到待處理文本
-                        if (!pendingText.isEmpty()) {
-                            pendingText.append(" ");
-                        }
-                        pendingText.append(text);
-
-                        // 如果累積了足夠的文本或距離上一次處理已經過了一定時間
-                        if (currentTimeInSeconds - lastProcessedTime >= 2.0 ||
-                                pendingText.length() >= 100) {  // 可以調整這些閾值
-
-                            TranscriptionSegment segment = createTranscriptionSegment(pendingText.toString(), firstTextStartTime, currentTimeInSeconds);
-
-                            transcriptionSegments.add(segment);
-                            // 重置狀態
-                            pendingText.setLength(0);
-                            lastProcessedTime = currentTimeInSeconds;
-                            firstTextStartTime = null;
-                        }
-                    }
-                }
-                currentTimeInSeconds += bufferTimeInSeconds;
-            }
-
-            // 處理最後剩餘的文本
-            if (!pendingText.isEmpty()) {
-                String finalText = pendingText.toString();
-                if (!finalText.trim().isEmpty()) {
-                    TranscriptionSegment segment = createTranscriptionSegment(finalText, firstTextStartTime, currentTimeInSeconds);
-                    transcriptionSegments.add(segment);
+                    addResultToSegments(segments, recognizer.getResult());
                 }
             }
-
-        } catch (Exception e) {
-            log.error("音頻轉換失敗", e);
-            throw new RuntimeException("音頻轉換失敗: " + e.getMessage(), e);
+            addResultToSegments(segments, recognizer.getFinalResult());
+            return segments;
+        } catch (UnsupportedAudioFileException | IOException e) {
+            throw new RuntimeException(e);
         }
-        return transcriptionSegments;
     }
 
-
+    private void addResultToSegments(List<TranscriptionSegment> segments, String result) {
+        if (result != null) {
+            JsonNode jsonNode;
+            try {
+                jsonNode = objectMapper.readTree(result);
+                log.info("jsonNode: {}", jsonNode);
+                if (!jsonNode.isEmpty() && jsonNode.has("result") && !jsonNode.get("result").isEmpty()) {
+                    JsonNode words = jsonNode.get("result");
+                    segments.add(createTranscriptionSegment(jsonNode.get("text").asText(),
+                                                            (words.get(0).get("start").asDouble()),
+                                                            (words.get(words.size()-1).get("end").asDouble())));
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+    @Deprecated
     private String formatTime(long milliseconds) {
         return String.format("%.3f", milliseconds / 1000.0);
     }
 
+    @Deprecated
     private boolean isSignificantSilence(byte[] buffer, int bytesRead) {
         int threshold = 500;
         int sum = 0;
@@ -161,7 +127,7 @@ public class AudioServiceImp implements AudioService {
 
 
     private TranscriptionSegment createTranscriptionSegment(
-            String text, long segmentStartTime, long currentTimeInSeconds) {
+            String text, double segmentStartTime, double currentTimeInSeconds) {
         if (!text.isEmpty()) {
             TranscriptionSegment transcriptionSegment = new TranscriptionSegment();
             transcriptionSegment.setText(text);

@@ -13,6 +13,6 @@ import lombok.Data;
 @Data
 public class TranscriptionSegment {
     private String text;
-    private Long startTime;
-    private Long endTime;
+    private Double startTime;
+    private Double endTime;
 }
