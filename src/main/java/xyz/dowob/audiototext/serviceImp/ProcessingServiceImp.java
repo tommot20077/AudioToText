@@ -11,6 +11,7 @@ import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
 import xyz.dowob.audiototext.config.AudioProperties;
 import xyz.dowob.audiototext.service.ProcessingService;
+import xyz.dowob.audiototext.strategy.PunctuationStrategy;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +30,7 @@ import java.nio.file.Path;
 @RequiredArgsConstructor
 public class ProcessingServiceImp implements ProcessingService {
     private final AudioProperties audioProperties;
+    private final PunctuationStrategy punctuationStrategy;
 
     /**
      * 儲存音訊檔案
@@ -112,7 +114,7 @@ public class ProcessingServiceImp implements ProcessingService {
      * @return 復原標點符號後的文字內容
      */
     @Override
-    public String punctuationRestore(String text) {
-        return "";
+    public String punctuationRestore(String text) throws Exception {
+        return punctuationStrategy.addPunctuation(text);
     }
 }

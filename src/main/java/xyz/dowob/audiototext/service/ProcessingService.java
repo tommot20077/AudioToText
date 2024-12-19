@@ -51,6 +51,6 @@ public interface ProcessingService {
      * @param text 轉譯後的原始文字內容
      * @return 復原標點符號後的文字內容
      */
-    String punctuationRestore(String text);
+    String punctuationRestore(String text) throws Exception;
 
 }

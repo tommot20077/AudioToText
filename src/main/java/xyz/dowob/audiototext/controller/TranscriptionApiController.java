@@ -12,7 +12,6 @@ import xyz.dowob.audiototext.type.ModelType;
 
 import java.io.File;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -31,11 +30,9 @@ public class TranscriptionApiController implements ApiController {
 
     private final AudioService audioService;
 
-    private final ProcessingService processingService;
-
     @PostMapping("/transcription")
     public ResponseEntity<?> transcribeAudio(@RequestParam("file") MultipartFile file, @RequestParam("model") String modelType) {
-        String taskId = UUID.randomUUID().toString();
+
         try {
             if (file.isEmpty()) {
                 return createResponseEntity(createErrorResponse("/api/transcription", "檔案為空", 400));
@@ -43,19 +40,11 @@ public class TranscriptionApiController implements ApiController {
                 return createResponseEntity(createErrorResponse("/api/transcription", "模型類型為空", 400));
             }
             ModelType type = ModelType.getModelTypeByCode(modelType);
-
-            File tempInputFile = processingService.saveAudio(file, taskId);
-            log.info("檔案上傳成功: {}", tempInputFile.getName());
-            File standardizedAudioFile = processingService.standardizeAudio(tempInputFile, taskId);
-            log.info("音訊檔案標準化成功: {}", standardizedAudioFile.getName());
-            List<Map<String, Object>> result = audioService.audioToText(tempInputFile, standardizedAudioFile, type);
-            log.info("轉換成功: {}", result);
+            Object result = audioService.audioToText(file, type);
             return createResponseEntity(createSuccessResponse("/api/transcription", "轉換成功", result));
         } catch (Exception e) {
             log.error("轉換失敗: ", e);
             return createResponseEntity(createErrorResponse("/api/transcription", String.format("轉換失敗: %s", e.getMessage()), 400));
-        } finally {
-            processingService.deleteTempFile(taskId);
         }
     }
 

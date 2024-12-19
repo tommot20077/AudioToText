@@ -3,8 +3,10 @@ package xyz.dowob.audiototext.type;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
+import xyz.dowob.audiototext.strategy.DeepPunctuationStrategy;
 
 import java.util.HashMap;
 import java.util.List;
@@ -23,7 +25,6 @@ public record ModelType(String code, String description, String language) {
 
     @Component
     @RequiredArgsConstructor
-    @DependsOn("modelTypeConfigs")
     public static class ModelTypeInitializer {
         private final List<ModelType> modelTypeConfigs;
 

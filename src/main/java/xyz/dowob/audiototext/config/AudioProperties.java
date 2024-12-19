@@ -26,6 +26,7 @@ public class AudioProperties {
         public String tempFileDirectory = "./temp/audio/";
         public String modelDirectory = "./model/";
         public String modelInfoPath = "./model/model-info.json";
+        public String punctuationModelDirectory = "./model/punctuation/";
     }
 
     @Data
@@ -38,5 +39,6 @@ public class AudioProperties {
     @Data
     public static class Threshold {
         private int chunkBufferSize = 2048;
+        private int maxSequenceLength = 512;
     }
 }

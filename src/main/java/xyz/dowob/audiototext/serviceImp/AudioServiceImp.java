@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.vosk.Recognizer;
 import xyz.dowob.audiototext.config.AudioProperties;
 import xyz.dowob.audiototext.dto.ModelInfoDTO;
 import xyz.dowob.audiototext.entity.TranscriptionSegment;
 import xyz.dowob.audiototext.service.AudioService;
+import xyz.dowob.audiototext.service.ProcessingService;
 import xyz.dowob.audiototext.strategy.SpeechRecognitionStrategyStrategy;
 import xyz.dowob.audiototext.type.ModelType;
 
@@ -18,10 +20,7 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 實現音檔處理的具體方法，實現AudioService接口
@@ -44,6 +43,8 @@ public class AudioServiceImp implements AudioService {
 
     private final SpeechRecognitionStrategyStrategy speechRecognitionStrategyStrategy;
 
+    private final ProcessingService processingService;
+
     /**
      * 將音訊檔案轉換成文字
      *
@@ -52,8 +53,28 @@ public class AudioServiceImp implements AudioService {
      * @return 轉換後的文字
      */
     @Override
-    public List<Map<String, Object>> audioToText(File audioFile, File standardizedAudioFile, ModelType type) {
-        return convertTranscriptionSegments(transcribe(standardizedAudioFile, type));
+    public Object audioToText(MultipartFile audioFile, ModelType type) {
+        String taskId = UUID.randomUUID().toString();
+        try {
+            File tempInputFile = processingService.saveAudio(audioFile, taskId);
+            log.debug("檔案上傳成功: {}", tempInputFile.getName());
+
+            File standardizedAudioFile = processingService.standardizeAudio(tempInputFile, taskId);
+            log.debug("音訊檔案標準化成功: {}", standardizedAudioFile.getName());
+
+            Map<String, Object> result = new HashMap<>();
+            Map<String, Object> convertMap = convertTranscriptionSegments(transcribe(standardizedAudioFile, type));
+            log.debug("轉換成功: {}", convertMap);
+            result.put("segments", convertMap.get("segments"));
+            result.put("text", processingService.punctuationRestore(convertMap.get("text").toString()));
+            log.debug("轉換成功: {}", result);
+            return result;
+        } catch (Exception e) {
+            log.error("轉換失敗: ", e);
+            throw new RuntimeException(e);
+        } finally {
+            processingService.deleteTempFile(taskId);
+        }
     }
 
     /**
@@ -113,8 +134,10 @@ public class AudioServiceImp implements AudioService {
         return (sum / bytesRead) < threshold;
     }
 
-    private List<Map<String, Object>> convertTranscriptionSegments(List<TranscriptionSegment> transcriptionSegments) {
+    private Map<String, Object> convertTranscriptionSegments(List<TranscriptionSegment> transcriptionSegments) {
+        Map<String, Object> result = new HashMap<>();
         List<Map<String, Object>> segments = new ArrayList<>();
+        StringBuilder text = new StringBuilder();
         for (TranscriptionSegment segment : transcriptionSegments) {
             if (segment != null) {
                 Map<String, Object> segmentMap = new HashMap<>();
@@ -122,9 +145,12 @@ public class AudioServiceImp implements AudioService {
                 segmentMap.put("start_time", segment.getStartTime());
                 segmentMap.put("end_time", segment.getEndTime());
                 segments.add(segmentMap);
+                text.append(segment.getText()).append(" ");
             }
         }
-        return segments;
+        result.put("segments", segments);
+        result.put("text", text.toString());
+        return result;
     }
 
 

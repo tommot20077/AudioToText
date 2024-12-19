@@ -133,6 +133,13 @@
             <artifactId>tokenizers</artifactId>
             <version>0.31.0</version>
         </dependency>
+        <dependency>
+            <groupId>ai.djl.pytorch</groupId>
+            <artifactId>pytorch-native-cpu</artifactId>
+            <version>2.5.1</version>
+        </dependency>
+
+
 
 
 

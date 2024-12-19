@@ -34,18 +34,6 @@ import java.util.Map;
 public class ServiceConfig {
     private final AudioProperties audioProperties;
     private final ObjectMapper objectMapper;
-
-    // @Bean
-    // public Model model() {
-    //     if (!new File(audioProperties.getPath().getModelPath()).exists()) {
-    //         throw new RuntimeException("請下載Vosk模型並放置於: " + splitPath(audioProperties.getPath().getModelPath()));
-    //     }
-    //     try {
-    //         return new Model(audioProperties.getPath().getModelPath());
-    //     } catch (IOException e) {
-    //         throw new RuntimeException(e);
-    //     }
-    // }
     @Bean
     public List<ModelType> modelTypeConfigs() throws IOException {
         File modelInfoPath = new File(audioProperties.getPath().getModelInfoPath());
