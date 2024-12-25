@@ -96,7 +96,7 @@ public class Task {
         map.put("status", status);
         map.put("downloadUrl", downloadUrl);
         map.put("createTime", createTime);
-        map.put("expireTime", finishTime);
+        map.put("finishTime", finishTime);
 
         String truncatedResult = result != null && result.length() > 100 ? result.substring(0, 100) + "..." : result;
         map.put("result", truncatedResult);

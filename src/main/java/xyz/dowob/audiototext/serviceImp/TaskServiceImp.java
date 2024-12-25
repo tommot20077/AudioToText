@@ -74,6 +74,19 @@ public class TaskServiceImp implements TaskService {
     }
 
     /**
+     * 根據任務 ID 查詢任務
+     *
+     * @param taskId 任務 ID
+     *
+     * @return Task 任務
+     */
+    @Override
+    public Task findTaskByTaskIdAndStatus(String taskId, List<TaskStatusDTO.Status> status) {
+        return taskRepository.findByTaskIdAndStatuses(taskId, status);
+    }
+
+    /**
+     * 儲存任務狀態
      * @param task 任務
      */
     @Override
@@ -82,6 +95,7 @@ public class TaskServiceImp implements TaskService {
     }
 
     /**
+     * 刪除任務狀態
      * @param task 任務
      */
     @Override

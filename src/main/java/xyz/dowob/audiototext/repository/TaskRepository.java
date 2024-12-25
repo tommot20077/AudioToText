@@ -23,14 +23,7 @@ import java.util.List;
  **/
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
-    /**
-     * 根據任務 ID 查詢任務
-     *
-     * @param taskId 任務 ID
-     *
-     * @return 任務 {@link Task}
-     */
-    Task findByTaskId(String taskId);
+
 
     /**
      * 根據任務 ID 刪除任務
@@ -38,6 +31,17 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      * @param taskId 任務 ID
      */
     void deleteByTaskId(String taskId);
+
+    /**
+     * 根據任務 ID 以及任務狀態 查詢任務
+     *
+     * @param taskId 任務 ID
+     * @param statuses 任務狀態列表
+     *
+     * @return 任務 {@link Task}
+     */
+    @Query("SELECT t FROM Task t WHERE t.taskId = :taskId AND t.status IN :statuses")
+    Task findByTaskIdAndStatuses(@Param("taskId") String taskId, @Param("statuses") List<TaskStatusDTO.Status> statuses);
 
     /**
      * 查詢所有未完成以及指定時間戳以前的任務

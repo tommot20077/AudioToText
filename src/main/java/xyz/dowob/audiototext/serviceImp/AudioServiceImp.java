@@ -118,9 +118,7 @@ public class AudioServiceImp implements AudioService {
                         task.setStatus(TaskStatusDTO.Status.FAILED);
                         task.setResult("PDF 生成失敗: " + e.getMessage());
                     }
-
                     task.setDownloadUrl(downloadUrl);
-                    updateProgressAndNotify(taskStatusDTO, downloadUrl);
                 }
                 taskService.updateTaskStatus(taskStatusDTO, true);
                 processingService.deleteTempFile(taskId);
@@ -337,6 +335,8 @@ public class AudioServiceImp implements AudioService {
     private String generateFileUrl(HttpServletRequest request, String taskId) {
         String serverHost = request.getServerName();
         int serverPort = request.getServerPort();
-        return serverHost + ":" + serverPort + "/files/" + taskId + "_output.pdf";
+        String scheme = "http".equals(request.getScheme()) ? "http" : "https";
+
+        return scheme + "://" + serverHost + ":" + serverPort + "/files/" + taskId + "_output.pdf";
     }
 }

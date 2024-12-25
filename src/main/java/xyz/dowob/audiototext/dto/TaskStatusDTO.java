@@ -21,6 +21,7 @@ import java.util.HashMap;
  **/
 @Setter
 @Getter
+@AllArgsConstructor
 public class TaskStatusDTO {
     /**
      * 任務 ID

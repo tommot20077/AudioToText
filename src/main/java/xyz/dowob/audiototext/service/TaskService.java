@@ -54,6 +54,17 @@ public interface TaskService {
 
     }
 
+    /**
+     * 根據任務 ID 查詢任務
+     *
+     * @param taskId 任務 ID
+     *
+     * @return Task 任務 {@link Task}
+     */
+    default Task findTaskByTaskIdAndStatus(String taskId, List<TaskStatusDTO.Status> status) {
+        return null;
+    }
+
 
     /**
      * 查詢所有未完成以及指定時間戳以前的任務

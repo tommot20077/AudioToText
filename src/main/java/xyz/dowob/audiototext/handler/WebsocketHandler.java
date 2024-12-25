@@ -10,11 +10,18 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import xyz.dowob.audiototext.controller.ApiController;
+import xyz.dowob.audiototext.dto.ApiResponseDTO;
 import xyz.dowob.audiototext.dto.TaskStatusDTO;
+import xyz.dowob.audiototext.entity.Task;
 import xyz.dowob.audiototext.service.TaskService;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -33,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  **/
 @Log4j2
 @Component
-public class WebsocketHandler extends TextWebSocketHandler {
+public class WebsocketHandler extends TextWebSocketHandler implements ApiController {
     /**
      * 任務服務類，用於操作任務的增刪改查
      */
@@ -89,17 +96,47 @@ public class WebsocketHandler extends TextWebSocketHandler {
         try {
             JsonNode jsonNode = objectMapper.readTree(payload);
             String taskId = jsonNode.get("taskId").asText();
-            log.info("接收到任務ID: {}", taskId);
+            Task task = taskService.findTaskByTaskIdAndStatus(taskId, List.of(TaskStatusDTO.Status.SUCCESS, TaskStatusDTO.Status.FAILED));
+            if (task != null) {
+                HashMap<String, Object> result = new HashMap<>();
+                result.put("downloadUrl", task.getDownloadUrl());
+                result.put("data", objectMapper.readTree(task.getResult()));
+                TaskStatusDTO statusDTO = new TaskStatusDTO(taskId, new BigDecimal("100.0"), task.getStatus(), result);
+                sendTaskStatus(statusDTO, session);
+                return;
+            }
+
+
             TaskStatusDTO statusDTO = taskService
                     .getTaskStatus(taskId)
                     .orElseThrow(() -> new IllegalArgumentException("任務ID: " + taskId + " 不存在"));
             sessionMap.put(taskId, session);
-            sendTaskStatus(statusDTO);
-        } catch (IOException e) {
-            log.error("處理訊息失敗: {}", e.getMessage());
+            sendTaskStatus(statusDTO, session);
+        } catch (Exception e) {
+            handleTransportError(session, e);
         }
-
     }
+
+    /**
+     * WebSocket 連接錯誤時觸發
+     * 發送錯誤訊息給前端
+     *
+     * @param session   WebSocket 連接 Session
+     * @param exception 連接錯誤異常
+     */
+    @Override
+    public void handleTransportError(@NonNull WebSocketSession session, @NonNull Throwable exception) {
+        try {
+            ApiResponseDTO response = createErrorResponse(Objects.requireNonNull(session.getUri()).getPath(),
+                                                          "WebSocket 連接錯誤: " + exception.getMessage(),
+                                                          400);
+            log.error("WebSocket 連接錯誤: {}", response.getMessage());
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
+        } catch (Exception e) {
+            log.error("處理錯誤訊息發生錯誤: {}", e.getMessage());
+        }
+    }
+
 
     /**
      * 發送任務狀態信息給前端
@@ -107,14 +144,21 @@ public class WebsocketHandler extends TextWebSocketHandler {
      *
      * @param taskStatusDTO 任務狀態信息
      */
-    public void sendTaskStatus(@NotNull TaskStatusDTO taskStatusDTO) {
-        WebSocketSession session = sessionMap.get(taskStatusDTO.getTaskId());
+    public void sendTaskStatus(@NotNull TaskStatusDTO taskStatusDTO, WebSocketSession session) {
+        WebSocketSession useSession;
+        if (session != null) {
+            useSession = session;
+        } else {
+            useSession = sessionMap.get(taskStatusDTO.getTaskId());
+        }
+
         try {
-            if (session != null && session.isOpen()) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(taskStatusDTO)));
+            if (useSession != null && useSession.isOpen()) {
+                useSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(taskStatusDTO)));
             }
         } catch (Exception e) {
             log.error("發送訊息失敗: {}", e.getMessage());
+            handleTransportError(useSession, e);
         }
     }
 }
