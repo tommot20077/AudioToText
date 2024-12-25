@@ -1,6 +1,9 @@
 package xyz.dowob.audiototext.dto;
 
 /**
+ * 模型信息 DTO，用於返回模型的信息
+ * 轉換為紀錄類型，包含模型的代碼、描述、語言
+ *
  * @author yuan
  * @program AudioToText
  * @ClassName ModelInfoDTO

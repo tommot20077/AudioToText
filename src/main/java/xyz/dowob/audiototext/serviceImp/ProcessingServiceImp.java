@@ -1,5 +1,10 @@
 package xyz.dowob.audiototext.serviceImp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -14,10 +19,15 @@ import xyz.dowob.audiototext.service.ProcessingService;
 import xyz.dowob.audiototext.strategy.PunctuationStrategy;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Path;
 
 /**
+ * 用於實現音訊檔案成可以被轉換以及優化處理內容的實現類
+ * 實現 ProcessingService 介面，實現音訊檔案的儲存、轉換、處理、輸出等功能
+ *
  * @author yuan
  * @program AudioToText
  * @ClassName ProcessingServiceImp
@@ -29,8 +39,20 @@ import java.nio.file.Path;
 @Log4j2
 @RequiredArgsConstructor
 public class ProcessingServiceImp implements ProcessingService {
+    /**
+     * 音訊的配置信息
+     */
     private final AudioProperties audioProperties;
+
+    /**
+     * 標點符號恢復的策略模式
+     */
     private final PunctuationStrategy punctuationStrategy;
+
+    /**
+     * Jackson ObjectMapper 類，用於將對象轉換為 JSON 字符串
+     */
+    private final ObjectMapper objectMapper;
 
     /**
      * 儲存音訊檔案
@@ -58,7 +80,7 @@ public class ProcessingServiceImp implements ProcessingService {
      * 轉換輸入的音訊檔案成可以被處理的格式
      *
      * @param tempAudioFile 音訊檔案
-     * @param taskId    任務ID
+     * @param taskId        任務ID
      *
      * @return 處理後的音訊檔案
      *
@@ -67,7 +89,9 @@ public class ProcessingServiceImp implements ProcessingService {
      */
     @Override
     public File standardizeAudio(File tempAudioFile, String taskId) throws IOException, EncoderException {
-        File standardizeAudio = File.createTempFile(String.format("%s_standardize_", taskId), ".wav", Path.of(audioProperties.getPath().getTempFileDirectory()).toFile());
+        File standardizeAudio = File.createTempFile(String.format("%s_standardize_", taskId),
+                                                    ".wav",
+                                                    Path.of(audioProperties.getPath().getTempFileDirectory()).toFile());
         EncodingAttributes encoderAttributes = getEncodingAttributes();
         Encoder encoder = new Encoder();
         encoder.encode(new MultimediaObject(tempAudioFile), standardizeAudio, encoderAttributes);
@@ -75,6 +99,13 @@ public class ProcessingServiceImp implements ProcessingService {
         return standardizeAudio;
     }
 
+    /**
+     * 取得音訊編碼屬性，其中包含音訊編碼的相關設定
+     * 根據AudioProperties中的標準格式設定，設定音訊編碼的相關屬性
+     * {@link AudioProperties.StandardFormat}
+     *
+     * @return 音訊編碼屬性
+     */
     private EncodingAttributes getEncodingAttributes() {
         EncodingAttributes encoderAttributes = new EncodingAttributes();
         AudioAttributes audioAttributes = new AudioAttributes();
@@ -116,5 +147,46 @@ public class ProcessingServiceImp implements ProcessingService {
     @Override
     public String punctuationRestore(String text) throws Exception {
         return punctuationStrategy.addPunctuation(text);
+    }
+
+    /**
+     * 將處理後的文字內容輸出到檔案
+     *
+     * @param result 處理後的文字內容
+     * @param taskId 任務ID
+     *
+     * @throws IOException 檔案寫入時錯誤
+     */
+    @Override
+    public void outputToFile(String result, String taskId) throws IOException {
+        Document document = new Document();
+        Path outputPath = Path.of(audioProperties.getPath().getOutputDirectory(), String.format("%s_output.pdf", taskId));
+        try (OutputStream ops = new FileOutputStream(outputPath.toFile())) {
+            PdfWriter.getInstance(document, ops);
+            document.open();
+            document.add(new Paragraph(result));
+            document.close();
+        } catch (DocumentException e) {
+            log.error("檔案寫入錯誤: ", e);
+            throw new IOException(e);
+        }
+    }
+
+    /**
+     * 將處理後的文字內容輸出成 JSON 格式
+     * 此方法為默認實現，若處理後的文字內容無法轉換成 JSON 格式，則直接返回 toString() 結果
+     *
+     * @param result 處理後的文字內容
+     *
+     * @return 處理後的文字內容 JSON 格式
+     */
+    @Override
+    public String formatToJson(Object result) {
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            log.error("格式化結果錯誤: ", e);
+            return result.toString();
+        }
     }
 }

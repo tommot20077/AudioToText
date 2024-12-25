@@ -3,6 +3,9 @@ package xyz.dowob.audiototext.entity;
 import lombok.Data;
 
 /**
+ * 轉譯片段，包含文字、開始時間、結束時間
+ * 用於返回音訊轉文字的結果
+ *
  * @author yuan
  * @program AudioToText
  * @ClassName TranscriptionSegment
@@ -12,7 +15,18 @@ import lombok.Data;
  **/
 @Data
 public class TranscriptionSegment {
+    /**
+     * 轉譯的文字
+     */
     private String text;
+
+    /**
+     * 開始時間
+     */
     private Double startTime;
+
+    /**
+     * 結束時間
+     */
     private Double endTime;
 }

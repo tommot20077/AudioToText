@@ -1,17 +1,17 @@
 package xyz.dowob.audiototext.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.multipart.MultipartFile;
 import ws.schild.jave.EncoderException;
 import xyz.dowob.audiototext.dto.ModelInfoDTO;
 import xyz.dowob.audiototext.type.ModelType;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 用於規範有關音訊檔案轉換的介面
+ *
  * @author yuan
  * @program AudioToText
  * @ClassName AudioService
@@ -27,11 +27,12 @@ public interface AudioService {
      *
      * @return 轉換後的文字
      */
-    Object audioToText(MultipartFile file, ModelType type) throws EncoderException, IOException;
+    Object audioToText(MultipartFile file, ModelType type, HttpServletRequest request) throws EncoderException, IOException;
 
     /**
      * 取得目前可用的轉換模型列表
      */
     List<ModelInfoDTO> getAvailableModels();
+
 
 }

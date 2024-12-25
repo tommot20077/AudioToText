@@ -36,3 +36,4 @@ build/
 /model/**
 /sample/**
 /plugin/**
+/output/

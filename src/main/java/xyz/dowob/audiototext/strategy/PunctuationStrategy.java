@@ -2,6 +2,8 @@ package xyz.dowob.audiototext.strategy;
 
 /**
  * 用於規範標點符號還原的介面
+ * 可以根據不同的策略實現不同的標點符號還原
+ *
  * @author yuan
  * @program AudioToText
  * @ClassName PunctuationStrategy
@@ -12,14 +14,18 @@ package xyz.dowob.audiototext.strategy;
 public interface PunctuationStrategy {
     /**
      * 添加標點符號到文本中
+     *
      * @param text 原始文本
+     *
      * @return 添加標點符號後的文本
+     *
      * @throws Exception 添加標點符號時發生錯誤
      */
     String addPunctuation(String text) throws Exception;
 
     /**
      * 取得模型名稱
+     *
      * @return 模型名稱
      */
     String getModelName();

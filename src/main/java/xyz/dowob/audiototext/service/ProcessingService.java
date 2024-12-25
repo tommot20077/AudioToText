@@ -1,5 +1,6 @@
 package xyz.dowob.audiototext.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.multipart.MultipartFile;
 import ws.schild.jave.EncoderException;
 
@@ -48,9 +49,39 @@ public interface ProcessingService {
 
     /**
      * 處理轉譯後的文字內容，將標點符號還原
+     *
      * @param text 轉譯後的原始文字內容
+     *
      * @return 復原標點符號後的文字內容
      */
     String punctuationRestore(String text) throws Exception;
+
+    /**
+     * 將處理後的文字內容輸出到檔案
+     *
+     * @param result 處理後的文字內容
+     * @param taskId 任務ID
+     *
+     * @throws IOException 檔案寫入時錯誤
+     */
+    // todo 時間限制
+    void outputToFile(String result, String taskId) throws IOException;
+
+    /**
+     * 將處理後的文字內容輸出成 JSON 格式
+     * 此方法為默認實現，若處理後的文字內容無法轉換成 JSON 格式，則直接返回 toString() 結果
+     *
+     * @param result 處理後的文字內容
+     *
+     * @return 處理後的文字內容 JSON 格式
+     */
+    default String formatToJson(Object result) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            return result.toString();
+        }
+    }
 
 }
