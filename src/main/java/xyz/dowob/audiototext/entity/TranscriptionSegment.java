@@ -1,5 +1,6 @@
 package xyz.dowob.audiototext.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
@@ -23,10 +24,12 @@ public class TranscriptionSegment {
     /**
      * 開始時間
      */
+    @JsonProperty("start_time")
     private Double startTime;
 
     /**
      * 結束時間
      */
+    @JsonProperty("end_time")
     private Double endTime;
 }

@@ -1,9 +1,8 @@
 package xyz.dowob.audiototext.serviceImp;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -164,12 +163,56 @@ public class ProcessingServiceImp implements ProcessingService {
         try (OutputStream ops = new FileOutputStream(outputPath.toFile())) {
             PdfWriter.getInstance(document, ops);
             document.open();
-            document.add(new Paragraph(result));
+            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 12);
+            Font timeFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
+
+            JsonNode rootNode = objectMapper.readTree(result);
+
+            generateTitle("Transcription Result", document);
+
+
+            Paragraph fullText = new Paragraph(rootNode.get("text").asText(), normalFont);
+            document.add(fullText);
+            document.add(new Paragraph("\n\n"));
+
+
+            generateTitle("Segments Timeline", document);
+            document.add(new Paragraph("(Start time ~ End time)", normalFont));
+
+            JsonNode segments = rootNode.get("segments");
+            for (JsonNode segment : segments) {
+                String timeInfo = String.format("(%.2f ~ %.2f)", segment.get("start_time").asDouble(), segment.get("end_time").asDouble());
+                Paragraph segmentText = new Paragraph(timeInfo, timeFont);
+                document.add(segmentText);
+
+                Paragraph segmentContent = new Paragraph(segment.get("text").asText(), normalFont);
+                document.add(segmentContent);
+
+                if (!segment.equals(segments.get(segments.size() - 1))) {
+                    document.add(new Paragraph("\n"));
+                }
+            }
+
             document.close();
         } catch (DocumentException e) {
             log.error("檔案寫入錯誤: ", e);
             throw new IOException(e);
         }
+    }
+
+    /**
+     * 生成標題
+     *
+     * @param title    標題
+     * @param document PDF 文檔
+     *
+     * @throws DocumentException 文檔處理錯誤
+     */
+    private void generateTitle(String title, Document document) throws DocumentException {
+        Paragraph segmentsTextTitle = new Paragraph(title, FontFactory.getFont(FontFactory.HELVETICA, 20, Font.BOLD));
+        segmentsTextTitle.setAlignment(Element.ALIGN_CENTER);
+        document.add(segmentsTextTitle);
+        document.add(new Paragraph("\n"));
     }
 
     /**

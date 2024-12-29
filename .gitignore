@@ -37,3 +37,4 @@ build/
 /sample/**
 /plugin/**
 /output/
+/src/main/resources/application-prod.yml

@@ -79,8 +79,7 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
      */
     @Override
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) throws IOException {
-        sessionMap.values().remove(session);
-        session.close();
+        cleanSession(session);
     }
 
     /**
@@ -127,11 +126,16 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
     @Override
     public void handleTransportError(@NonNull WebSocketSession session, @NonNull Throwable exception) {
         try {
-            ApiResponseDTO response = createErrorResponse(Objects.requireNonNull(session.getUri()).getPath(),
-                                                          "WebSocket 連接錯誤: " + exception.getMessage(),
-                                                          400);
-            log.error("WebSocket 連接錯誤: {}", response.getMessage());
-            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
+            if (exception instanceof IOException) {
+                cleanSession(session);
+                log.warn("WebSocket 連接中斷: {}", exception.getMessage());
+            } else {
+                ApiResponseDTO response = createErrorResponse(Objects.requireNonNull(session.getUri()).getPath(),
+                                                              "WebSocket 連接錯誤: " + exception.getMessage(),
+                                                              400);
+                log.error("WebSocket 連接錯誤: {}", response.getMessage());
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
+            }
         } catch (Exception e) {
             log.error("處理錯誤訊息發生錯誤: {}", e.getMessage());
         }
@@ -159,6 +163,13 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
         } catch (Exception e) {
             log.error("發送訊息失敗: {}", e.getMessage());
             handleTransportError(useSession, e);
+        }
+    }
+
+    private void cleanSession(WebSocketSession session) throws IOException {
+        sessionMap.values().remove(session);
+        if (session != null && session.isOpen()) {
+            session.close();
         }
     }
 }
