@@ -33,7 +33,6 @@ public class TaskListener implements ApplicationListener<TaskUpdateEvent> {
      */
     @Override
     public void onApplicationEvent(@NonNull TaskUpdateEvent event) {
-        log.debug("接收到更新事件 : {}", event);
         websocketHandler.sendTaskStatus(event.getTaskStatusDTO(), null);
     }
 }

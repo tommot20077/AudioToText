@@ -166,6 +166,14 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
         }
     }
 
+    /**
+     * 關閉 WebSocket 連接 Session
+     * 從 Session Map 中移除 Session，並關閉 Session
+     *
+     * @param session WebSocket 連接 Session
+     *
+     * @throws IOException 關閉 Session 時可能拋出的異常
+     */
     private void cleanSession(WebSocketSession session) throws IOException {
         sessionMap.values().remove(session);
         if (session != null && session.isOpen()) {

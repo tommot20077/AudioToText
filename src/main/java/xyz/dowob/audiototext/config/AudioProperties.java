@@ -52,11 +52,6 @@ public class AudioProperties {
         public String modelInfoPath = "./model/model-info.json";
 
         /**
-         * 標點符號恢復模型的路徑
-         */
-        public String punctuationModelDirectory = "./model/punctuation/";
-
-        /**
          * 轉譯文字檔的路徑
          */
         public String outputDirectory = "./output/";
@@ -65,20 +60,17 @@ public class AudioProperties {
     @Data
     public static class StandardFormat {
         /**
-         * 音檔標準採樣率，單位為Hz
-         * 預設為 16000 (不建議更改)
+         * 音檔標準採樣率，單位為Hz 預設為 16000 (不建議更改)
          */
         public int sampleRate = 16000;
 
         /**
-         * 音檔標準聲道
-         * 預設為 1 (不建議更改)
+         * 音檔標準聲道 預設為 1 (不建議更改)
          */
         public int channel = 1;
 
         /**
-         * 音檔標準位元率，單位為bps
-         * 預設為 16000 (不建議更改)
+         * 音檔標準位元率，單位為bps 預設為 16000 (不建議更改)
          */
         public int bitRate = 16000;
     }
@@ -86,15 +78,23 @@ public class AudioProperties {
     @Data
     public static class Threshold {
         /**
-         * 音檔處理的緩衝區大小，單位為byte
-         * 預設為 2048
+         * 音檔處理的緩衝區大小，單位為byte 預設為 2048
          */
         private int chunkBufferSize = 2048;
 
         /**
-         * 音檔處理的最大序列長度 (超過此長度則會進行分割)，單位為byte
-         * 預設為 512
+         * 音檔處理的最大序列長度 (超過此長度則會進行分割)，單位為byte 預設為 512
          */
         private int maxSequenceLength = 512;
+
+        /**
+         * 最大 Python 處理進程數量
+         */
+        private int maxPythonProcess = 3;
+
+        /**
+         * 最大處理時間，單位為秒 預設為 300
+         */
+        private int maxProcessingTime = 300;
     }
 }

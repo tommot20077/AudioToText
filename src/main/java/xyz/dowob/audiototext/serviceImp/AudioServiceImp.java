@@ -46,16 +46,34 @@ import java.util.concurrent.CompletableFuture;
 @Log4j2
 public class AudioServiceImp implements AudioService {
 
+    /**
+     * 音訊的配置類
+     */
     private final AudioProperties audioProperties;
 
+    /**
+     * Jackson ObjectMapper 類，用於將對象轉換為 JSON 字符串
+     */
     private final ObjectMapper objectMapper;
 
+    /**
+     * 音訊轉換策略
+     */
     private final SpeechRecognitionStrategy speechRecognitionStrategy;
 
+    /**
+     * 音訊處理服務類
+     */
     private final ProcessingService processingService;
 
+    /**
+     * 任務服務類
+     */
     private final TaskService taskService;
 
+    /**
+     * 事件發布者
+     */
     private final ApplicationEventPublisher publisher;
 
 
@@ -97,8 +115,7 @@ public class AudioServiceImp implements AudioService {
                                                                                              downloadUrl));
 
                     result.put("segments", convertMap.get("segments"));
-                    result.put("text", convertMap.get("text"));
-                    log.debug("轉換成功: {}", result);
+                    result.put("text", processingService.punctuationRestore(convertMap.get("text").toString(), taskId));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -248,7 +265,6 @@ public class AudioServiceImp implements AudioService {
                     segments.add(createTranscriptionSegment(jsonNode.get("text").asText(),
                                                             (words.get(0).get("start").asDouble()),
                                                             (words.get(words.size() - 1).get("end").asDouble())));
-                    log.debug("辨識結果: {}", words);
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);

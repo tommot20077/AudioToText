@@ -36,24 +36,20 @@ public class Task {
     /**
      * 任務 ID，唯一，不可為空
      */
-    @Column(name = "task_id",
-            nullable = false,
-            unique = true)
+    @Column(name = "task_id", nullable = false, unique = true)
     private String taskId;
 
     /**
      * 任務狀態: 使用 {@link TaskStatusDTO.Status} 列舉類型 ，不可為空
      */
-    @Column(name = "status",
-            nullable = false)
+    @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     private TaskStatusDTO.Status status;
 
     /**
      * 任務結果，使用 MEDIUMTEXT 類型保存(最大 16MB, 16*1024*1024)
      */
-    @Column(name = "result",
-            columnDefinition = "MEDIUMTEXT")
+    @Column(name = "result", columnDefinition = "MEDIUMTEXT")
     private String result;
 
     /**
@@ -65,8 +61,7 @@ public class Task {
     /**
      * 創建時間，不可為空
      */
-    @Column(name = "create_time",
-            nullable = false)
+    @Column(name = "create_time", nullable = false)
     private LocalDateTime createTime;
 
     /**
@@ -80,27 +75,8 @@ public class Task {
      * 在持久化之前，設置創建時間
      */
     @PrePersist
-    public void prePersist() {
+    public void prePersist () {
         createTime = LocalDateTime.now();
-    }
-
-    /**
-     * 重寫 toString 方法，返回任務的相關信息
-     *
-     * @return 任務的相關信息
-     */
-    @Override
-    public String toString() {
-        HashMap<String, Object> map = new HashMap<>();
-        map.put("taskId", taskId);
-        map.put("status", status);
-        map.put("downloadUrl", downloadUrl);
-        map.put("createTime", createTime);
-        map.put("finishTime", finishTime);
-
-        String truncatedResult = result != null && result.length() > 100 ? result.substring(0, 100) + "..." : result;
-        map.put("result", truncatedResult);
-        return map.toString();
     }
 
     /**
@@ -111,11 +87,30 @@ public class Task {
      * @return 任務 ID 是否相同
      */
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals (Object obj) {
         if (obj instanceof Task task) {
             return taskId.equals(task.taskId);
         }
         return false;
+    }
+
+    /**
+     * 重寫 toString 方法，返回任務的相關信息
+     *
+     * @return 任務的相關信息
+     */
+    @Override
+    public String toString () {
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("taskId", taskId);
+        map.put("status", status);
+        map.put("downloadUrl", downloadUrl);
+        map.put("createTime", createTime);
+        map.put("finishTime", finishTime);
+
+        String truncatedResult = result != null && result.length() > 100 ? result.substring(0, 100) + "..." : result;
+        map.put("result", truncatedResult);
+        return map.toString();
     }
 
 }

@@ -35,6 +35,7 @@ public class TranscriptionApiController implements ApiController {
      */
     private final AudioService audioService;
 
+
     /**
      * 音訊轉文字的 API 接口，接收音訊檔案和模型類型，返回音訊轉文字的結果
      *

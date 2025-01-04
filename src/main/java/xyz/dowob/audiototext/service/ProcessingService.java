@@ -51,10 +51,11 @@ public interface ProcessingService {
      * 處理轉譯後的文字內容，將標點符號還原
      *
      * @param text 轉譯後的原始文字內容
+     * @param taskId 任務ID
      *
      * @return 復原標點符號後的文字內容
      */
-    String punctuationRestore(String text) throws Exception;
+    String punctuationRestore (String text, String taskId) throws Exception;
 
     /**
      * 將處理後的文字內容輸出到檔案

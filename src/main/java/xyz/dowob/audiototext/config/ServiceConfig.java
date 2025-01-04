@@ -52,9 +52,8 @@ public class ServiceConfig {
      * @throws IOException 無法建立目錄
      */
     @PostConstruct
-    public void init() throws IOException {
+    public void init () throws IOException {
         createDirectoryIfNotExists(audioProperties.getPath().getOutputDirectory());
-        createDirectoryIfNotExists(audioProperties.getPath().getPunctuationModelDirectory());
         createDirectoryIfNotExists(audioProperties.getPath().getModelDirectory());
         createDirectoryIfNotExists(audioProperties.getPath().getTempFileDirectory());
     }
@@ -68,7 +67,7 @@ public class ServiceConfig {
      * @throws IOException 無法讀取模型資訊檔案
      */
     @Bean
-    public List<ModelType> modelTypeConfigs() throws IOException {
+    public List<ModelType> modelTypeConfigs () throws IOException {
         File modelInfoPath = new File(audioProperties.getPath().getModelInfoPath());
         if (!modelInfoPath.exists()) {
             if (!modelInfoPath.createNewFile()) {
@@ -78,7 +77,8 @@ public class ServiceConfig {
         }
         log.info("開始讀取模型資訊檔案: {}", modelInfoPath.getAbsolutePath());
         try (InputStream inputStream = new FileInputStream(modelInfoPath)) {
-            Map<String, List<ModelType>> modelMap = objectMapper.readValue(inputStream, new TypeReference<>() {});
+            Map<String, List<ModelType>> modelMap = objectMapper.readValue(inputStream, new TypeReference<>() {
+            });
             return modelMap.get("model");
         } catch (IOException e) {
             log.error("無法讀取模型資訊檔案: {}", modelInfoPath.getAbsolutePath(), e);
@@ -88,15 +88,14 @@ public class ServiceConfig {
 
 
     /**
-     * 初始化語音識別模型，並返回模型類型與模型的映射，模型類型為 {@link ModelType} 類別
-     * 會根據模型資訊檔案中的模型類型列表，初始化模型，回傳的模型類型與模型的映射中，只包含已經成功加載的模型
-     * 此方法會需要依賴於 {@link ModelType} 類別的初始化，需要在其初始化後執行
+     * 初始化語音識別模型，並返回模型類型與模型的映射，模型類型為 {@link ModelType} 類別 會根據模型資訊檔案中的模型類型列表，初始化模型，回傳的模型類型與模型的映射中，只包含已經成功加載的模型 此方法會需要依賴於 {@link ModelType}
+     * 類別的初始化，需要在其初始化後執行
      *
      * @return 模型類型與模型的映射
      */
     @Bean
     @DependsOn("modelType.ModelTypeInitializer")
-    public Map<ModelType, Model> modelMap() {
+    public Map<ModelType, Model> modelMap () {
         log.info("開始初始化語音識別模型...");
         File modelDirectory = new File(audioProperties.getPath().getModelDirectory());
         if (!modelDirectory.exists() || !modelDirectory.isDirectory()) {
@@ -134,7 +133,7 @@ public class ServiceConfig {
      *
      * @throws IOException 無法建立目錄
      */
-    private void createDirectoryIfNotExists(String directoryPath) throws IOException {
+    private void createDirectoryIfNotExists (String directoryPath) throws IOException {
         Path path = Path.of(directoryPath);
         if (!Files.exists(path)) {
             Files.createDirectories(path);

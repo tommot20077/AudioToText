@@ -14,8 +14,8 @@ import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
 import xyz.dowob.audiototext.config.AudioProperties;
+import xyz.dowob.audiototext.provider.PythonServiceProvider;
 import xyz.dowob.audiototext.service.ProcessingService;
-import xyz.dowob.audiototext.strategy.PunctuationStrategy;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -44,14 +44,14 @@ public class ProcessingServiceImp implements ProcessingService {
     private final AudioProperties audioProperties;
 
     /**
-     * 標點符號恢復的策略模式
-     */
-    private final PunctuationStrategy punctuationStrategy;
-
-    /**
      * Jackson ObjectMapper 類，用於將對象轉換為 JSON 字符串
      */
     private final ObjectMapper objectMapper;
+
+    /**
+     * PythonServiceInitializer 類，用於初始化 Python 服務
+     */
+    private final PythonServiceProvider pythonProvider;
 
     /**
      * 儲存音訊檔案
@@ -144,8 +144,8 @@ public class ProcessingServiceImp implements ProcessingService {
      * @return 復原標點符號後的文字內容
      */
     @Override
-    public String punctuationRestore(String text) throws Exception {
-        return punctuationStrategy.addPunctuation(text);
+    public String punctuationRestore (String text, String taskId) throws Exception {
+        return pythonProvider.getPunctuationResult(text, taskId);
     }
 
     /**
