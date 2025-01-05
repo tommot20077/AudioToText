@@ -55,6 +55,11 @@ public class AudioProperties {
          * 轉譯文字檔的路徑
          */
         public String outputDirectory = "./output/";
+
+        /**
+         * 音檔處理的 Python 腳本路徑
+         */
+        public String pythonScriptPath = "./python/";
     }
 
     @Data

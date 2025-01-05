@@ -106,43 +106,40 @@ public class AudioServiceImp implements AudioService {
             taskService.updateTaskStatus(taskStatusDTO, false);
             taskService.saveTaskStatus(task);
 
-            Map<String, Object> result = new HashMap<>();
             CompletableFuture.runAsync(() -> {
                 try {
-                    Map<String, Object> convertMap = convertTranscriptionSegments(transcribe(standardizedAudioFile,
-                                                                                             type,
-                                                                                             taskStatusDTO,
-                                                                                             downloadUrl));
+                    List<TranscriptionSegment> segments = transcribe(standardizedAudioFile, type, taskStatusDTO);
+                    log.debug("音訊轉譯完成: {}", segments.size());
 
+                    Map<String, Object> convertMap = convertTranscriptionSegments(segments);
+
+                    String punctuatedText = processingService.punctuationRestore(convertMap.get("text").toString(), taskId);
+                    log.debug("標點符號恢復完成: {}", punctuatedText.length());
+
+                    Map<String, Object> result = new HashMap<>();
                     result.put("segments", convertMap.get("segments"));
-                    result.put("text", processingService.punctuationRestore(convertMap.get("text").toString(), taskId));
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }).whenComplete((unused, throwable) -> {
-                if (throwable != null) {
-                    log.error("轉換失敗: ", throwable);
-                    task.setStatus(TaskStatusDTO.Status.FAILED);
-                    task.setResult(throwable.getMessage());
-                } else {
+                    result.put("text", punctuatedText);
+
                     String formatResult = processingService.formatToJson(result);
+
+                    result.put("downloadUrl", downloadUrl);
+                    updateProgressAndNotify(taskStatusDTO, 100.0, TaskStatusDTO.Status.SUCCESS, result);
+
                     task.setStatus(TaskStatusDTO.Status.SUCCESS);
                     task.setResult(formatResult);
-                    try {
-                        processingService.outputToFile(formatResult, taskId);
-                    } catch (Exception e) {
-                        log.error("生成 PDF 失敗: ", e);
-                        task.setStatus(TaskStatusDTO.Status.FAILED);
-                        task.setResult("PDF 生成失敗: " + e.getMessage());
-                    }
+                    processingService.outputToFile(formatResult, taskId);
                     task.setDownloadUrl(downloadUrl);
+                } catch (Exception e) {
+                    log.error("轉換失敗: ", e);
+                    task.setStatus(TaskStatusDTO.Status.FAILED);
+                    task.setResult(e.getMessage());
+                } finally {
+                    task.setFinishTime(LocalDateTime.now());
+                    taskService.updateTaskStatus(taskStatusDTO, true);
+                    taskService.saveTaskStatus(task);
+                    processingService.deleteTempFile(taskId);
+                    log.debug("已清理任務: {}", taskId);
                 }
-                taskService.updateTaskStatus(taskStatusDTO, true);
-                processingService.deleteTempFile(taskId);
-
-                task.setFinishTime(LocalDateTime.now());
-                taskService.saveTaskStatus(task);
-                log.debug("已清理任務: {}", taskId);
             });
             return Map.of("taskId", taskId);
         } catch (Exception e) {
@@ -175,7 +172,7 @@ public class AudioServiceImp implements AudioService {
      *
      * @throws RuntimeException 音訊檔案轉換失敗時拋出異常
      */
-    private List<TranscriptionSegment> transcribe(File audioFile, ModelType type, TaskStatusDTO task, String downloadUrl) {
+    private List<TranscriptionSegment> transcribe (File audioFile, ModelType type, TaskStatusDTO task) {
         try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
              Recognizer recognizer = new Recognizer(speechRecognitionStrategy.getModel(type),
                                                     audioProperties.getStandardFormat().sampleRate)) {
@@ -195,10 +192,6 @@ public class AudioServiceImp implements AudioService {
             }
             addResultToSegments(segments, recognizer.getFinalResult());
 
-            HashMap<String, Object> result = new HashMap<>();
-            result.put("segments", segments);
-            result.put("downloadUrl", downloadUrl);
-            updateProgressAndNotify(task, 100.0, TaskStatusDTO.Status.SUCCESS, result);
             return segments;
         } catch (Exception e) {
             log.error("音訊檔案轉譯失敗: ", e);
@@ -215,6 +208,7 @@ public class AudioServiceImp implements AudioService {
      * @param status   狀態
      * @param result   結果
      */
+    //todo 新增100%是否發送通知
     private void updateProgressAndNotify(TaskStatusDTO task, Double progress, TaskStatusDTO.Status status, Object result) {
         if (status != null) {
             task.setStatus(status);

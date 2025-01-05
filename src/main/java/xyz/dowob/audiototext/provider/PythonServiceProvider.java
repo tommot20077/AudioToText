@@ -10,13 +10,9 @@ import xyz.dowob.audiototext.config.ServiceConfig;
 import xyz.dowob.audiototext.dto.PunctuationTaskDTO;
 import xyz.dowob.audiototext.handler.PythonProcessHandler;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -35,14 +31,6 @@ import java.util.concurrent.*;
 @DependsOn("serviceConfig")
 public class PythonServiceProvider {
     /**
-     * 必要的文件列表，用於檢查資源目錄是否完整
-     */
-    private static final String[] REQUIRED_FILES = {"PunctuationRestoration.py", "requirements.txt"};
-    /**
-     * Python 處理器列表，用於保存 Python 處理器，當有任務時，從列表中選擇一個處理器進行處理
-     */
-    private final List<PythonProcessHandler> pythonHandlers = new ArrayList<>();
-    /**
      * 線程池，用於管理 Python 處理器的執行緒
      */
     private final ExecutorService executorService;
@@ -55,13 +43,29 @@ public class PythonServiceProvider {
      */
     private final AudioProperties audioProperties;
     /**
+     * 必要的文件列表，用於檢查資源目錄是否完整
+     */
+    private static final String[] REQUIRED_FILES = {"PunctuationRestoration.py", "requirements.txt"};
+    /**
      * 最大 Python 處理器數量，用於限制 Python 處理器的最大數量
      */
-    private final int maxPythonProcessNumber;
+    private final int MAX_PROCESSING_NUMBER;
+    /**
+     * Python 腳本目錄，用於 Python 腳本相關資料的目錄
+     */
+    private final String PYTHON_DIRECTORY;
+    /**
+     * Python 處理器列表，用於保存 Python 處理器，當有任務時，從列表中選擇一個處理器進行處理
+     */
+    private final List<PythonProcessHandler> processHandlers = new ArrayList<>();
     /**
      * 任務隊列，用於保存等待處理的任務，使用併發隊列，保證多線程安全
      */
-    private final Queue<PunctuationTaskDTO> taskQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<PunctuationTaskDTO> TASK_QUEUE = new ConcurrentLinkedQueue<>();
+    /**
+     * Python 程序名稱，用於檢查 Python 環境
+     */
+    private String PYTHON_NAME;
 
 
     /**
@@ -71,9 +75,10 @@ public class PythonServiceProvider {
      */
     public PythonServiceProvider (AudioProperties audioProperties) {
         this.audioProperties = audioProperties;
-        this.maxPythonProcessNumber = audioProperties.getThreshold().getMaxPythonProcess();
-        this.executorService = Executors.newFixedThreadPool(maxPythonProcessNumber);
-        this.semaphore = new Semaphore(maxPythonProcessNumber);
+        this.MAX_PROCESSING_NUMBER = audioProperties.getThreshold().getMaxPythonProcess();
+        this.PYTHON_DIRECTORY = audioProperties.getPath().getPythonScriptPath();
+        this.executorService = Executors.newFixedThreadPool(MAX_PROCESSING_NUMBER);
+        this.semaphore = new Semaphore(MAX_PROCESSING_NUMBER);
     }
 
     /**
@@ -83,42 +88,44 @@ public class PythonServiceProvider {
      *
      * @throws IOException          初始化時可能拋出的 IO 異常
      * @throws InterruptedException 初始化時可能拋出的中斷異常
-     * @throws URISyntaxException   初始化時可能拋出的 URI 異常
      */
     @PostConstruct
-    public void init () throws IOException, InterruptedException, URISyntaxException {
-        if (!isPythonInstalled()) {
+    public void init () throws IOException, InterruptedException {
+        if (checkPythonVersion("python") && checkPythonVersion("python3")) {
             throw new RuntimeException("未偵測到 Python 環境，請安裝 Python 3");
         }
         File punctuationScriptDirectory = getResourceDirectory();
-        if (!punctuationScriptDirectory.exists() || !checkFileExist(punctuationScriptDirectory)) {
-            throw new IllegalArgumentException("資源目錄不存在或不完整: " + punctuationScriptDirectory);
-        }
 
         createVirtualEnvironment(punctuationScriptDirectory);
         installDependencies(punctuationScriptDirectory);
 
-        for (int i = 0; i < maxPythonProcessNumber; i++) {
-            pythonHandlers.add(new PythonProcessHandler(punctuationScriptDirectory, audioProperties));
+        for (int i = 0; i < MAX_PROCESSING_NUMBER; i++) {
+            processHandlers.add(new PythonProcessHandler(punctuationScriptDirectory, audioProperties, PYTHON_NAME));
             log.info("初始化 PythonProcessHandler [{}]", i + 1);
         }
     }
 
     /**
      * 檢查 Python 環境是否正確，檢查是否安裝了 Python 3
+     * 此方法使用反轉的邏輯，如果 Python 3 未安裝，則返回 true，否則返回 false
      *
      * @return 是否安裝了 Python 3
      */
-    private boolean isPythonInstalled () {
+    private boolean checkPythonVersion (String pythonName) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("python", "--version");
+            ProcessBuilder pb = new ProcessBuilder(pythonName, "--version");
             Process process = pb.start();
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String version = reader.readLine();
             int exitCode = process.waitFor();
-            return exitCode == 0 && version.startsWith("Python 3");
-        } catch (IOException | InterruptedException e) {
-            return false;
+
+            boolean isInstalled = exitCode == 0 && version.startsWith("Python 3");
+            if (isInstalled) {
+                this.PYTHON_NAME = pythonName;
+            }
+            return !isInstalled;
+        } catch (Exception e) {
+            return true;
         }
     }
 
@@ -131,16 +138,16 @@ public class PythonServiceProvider {
      * @throws InterruptedException 創建虛擬環境時可能拋出的中斷異常
      */
     private void createVirtualEnvironment (File virDirectory) throws IOException, InterruptedException {
-        if (new File(virDirectory, "venv").exists()) {
+        if (new File(virDirectory, ".venv").exists()) {
             log.debug("Python 虛擬環境已存在，跳過創建步驟");
             return;
         }
-        ProcessBuilder pb = new ProcessBuilder("python", "-m", "venv", "venv");
+        ProcessBuilder pb = new ProcessBuilder(PYTHON_NAME, "-m", "venv", ".venv");
         pb.directory(virDirectory);
         Process process = pb.start();
         int exitCode = process.waitFor();
         if (exitCode != 0) {
-            throw new RuntimeException("無法創建 Python 虛擬環境, 退出碼: " + exitCode);
+            throw new RuntimeException("無法創建 Python 虛擬環境, 退出碼: " + exitCode + "，請檢查是否安裝 python3-venv");
         }
         log.info("創建 Python 虛擬環境完成");
     }
@@ -154,7 +161,7 @@ public class PythonServiceProvider {
      * @throws InterruptedException 安裝依賴時可能拋出的中斷異常
      */
     private void installDependencies (File tempDir) throws IOException, InterruptedException {
-        ProcessBuilder checkBuilder = new ProcessBuilder(getProgramPath(tempDir), "list");
+        ProcessBuilder checkBuilder = new ProcessBuilder(getProgramPath(tempDir), "-m", "pip", "list");
         checkBuilder.directory(tempDir);
         Process checkProcess = checkBuilder.start();
 
@@ -181,7 +188,7 @@ public class PythonServiceProvider {
             return;
         }
 
-        ProcessBuilder pipBuilder = new ProcessBuilder(getProgramPath(tempDir), "install", "-r", "requirements.txt");
+        ProcessBuilder pipBuilder = new ProcessBuilder(getProgramPath(tempDir), "-m", "pip", "install", "-r", "requirements.txt");
         pipBuilder.directory(tempDir);
         log.info("安裝 Python 依賴...");
         Process pipProcess = pipBuilder.start();
@@ -209,24 +216,43 @@ public class PythonServiceProvider {
      */
     private String getProgramPath (File venvDirectory) {
         if (System.getProperty("os.name").toLowerCase().contains("win")) {
-            return venvDirectory.toPath().resolve("venv").resolve("Scripts").resolve(String.format("%s.exe", "pip")).toString();
+            return venvDirectory.toPath().resolve(".venv").resolve("Scripts").resolve(String.format("%s.exe", PYTHON_NAME)).toString();
         }
-        return venvDirectory.toPath().resolve("venv").resolve("bin").resolve(String.format("%s", "pip")).toString();
+        return venvDirectory.toPath().resolve(".venv").resolve("bin").resolve(String.format("%s", PYTHON_NAME)).toString();
     }
 
     /**
      * 獲取資源目錄，用於獲取 Python 腳本目錄
      *
      * @return 資源目錄
-     *
-     * @throws URISyntaxException 獲取資源目錄時可能拋出的 URI 異常
      */
-    private File getResourceDirectory () throws URISyntaxException {
-        URL resourceUrl = getClass().getClassLoader().getResource("python");
-        if (resourceUrl == null) {
-            throw new IllegalArgumentException("找不到資源目錄: python");
+    private File getResourceDirectory () throws IOException {
+        File workDir = new File(PYTHON_DIRECTORY);
+        if ((!workDir.exists() && workDir.mkdirs()) || !checkFileExist(workDir)) {
+            copyResourcesToDirectory(workDir);
         }
-        return new File(resourceUrl.toURI());
+        return workDir;
+    }
+
+    private void copyResourcesToDirectory (File targetDir) throws IOException {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("python")) {
+            if (is == null) {
+                throw new IllegalArgumentException("找不到資源目錄: " + "python");
+            }
+
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
+                String fileName;
+                while ((fileName = br.readLine()) != null) {
+                    String fullPath = "python" + "/" + fileName;
+                    try (InputStream fileIs = getClass().getClassLoader().getResourceAsStream(fullPath)) {
+                        if (fileIs != null) {
+                            File targetFile = new File(targetDir, fileName);
+                            Files.copy(fileIs, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -264,7 +290,7 @@ public class PythonServiceProvider {
             submitTask(task);
         } else {
             log.debug("任務進入等待隊列: {}", task);
-            taskQueue.offer(task);
+            TASK_QUEUE.offer(task);
         }
         return task.getFuture().get();
     }
@@ -277,28 +303,28 @@ public class PythonServiceProvider {
      */
     private void submitTask (PunctuationTaskDTO task) {
 
-            try {
-                PythonProcessHandler handler = getAvailableHandler();
-                if (handler == null) {
-                    throw new RuntimeException("沒有可用的 Python 處理器");
-                }
-                String result = handler.sendText(task.getText(), task.getTaskId());
-                log.debug("Python 處理完成: {}", result);
-                task.getFuture().complete(result);
-            } catch (Exception e) {
-                log.error("Python 處理錯誤: {}", e.getMessage());
-                task.getFuture().completeExceptionally(e);
-            } finally {
-                log.debug("釋放處理器");
-                semaphore.release();
-                if (taskQueue.peek() != null) {
-                    log.debug("處理等待隊列任務");
-                    if (semaphore.tryAcquire()) {
-                        log.debug("獲取到處理器，提交任務");
-                        submitTask(taskQueue.poll());
-                    }
+        try {
+            PythonProcessHandler handler = getAvailableHandler();
+            if (handler == null) {
+                throw new RuntimeException("沒有可用的 Python 處理器");
+            }
+            String result = handler.sendText(task.getText(), task.getTaskId());
+            log.debug("Python 處理完成: {}", result);
+            task.getFuture().complete(result);
+        } catch (Exception e) {
+            log.error("Python 處理錯誤: {}", e.getMessage());
+            task.getFuture().completeExceptionally(e);
+        } finally {
+            log.debug("釋放處理器");
+            semaphore.release();
+            if (TASK_QUEUE.peek() != null) {
+                log.debug("處理等待隊列任務");
+                if (semaphore.tryAcquire()) {
+                    log.debug("獲取到處理器，提交任務");
+                    submitTask(TASK_QUEUE.poll());
                 }
             }
+        }
         executorService.submit(() -> {
         });
     }
@@ -310,10 +336,10 @@ public class PythonServiceProvider {
      * @return 可用的 Python 處理器
      */
     private synchronized PythonProcessHandler getAvailableHandler () {
-        if (pythonHandlers.isEmpty()) {
+        if (processHandlers.isEmpty()) {
             throw new RuntimeException("Python 處理器列表為空，請檢查初始化是否正確");
         }
-        return pythonHandlers.stream().filter(PythonProcessHandler::isAvailable).findFirst().orElse(null);
+        return processHandlers.stream().filter(PythonProcessHandler::isAvailable).findFirst().orElse(null);
     }
 
     /**
@@ -323,7 +349,7 @@ public class PythonServiceProvider {
     @PreDestroy
     public void destroy () {
         executorService.shutdown();
-        pythonHandlers.forEach(PythonProcessHandler::destroy);
+        processHandlers.forEach(PythonProcessHandler::destroy);
         log.info("關閉所有 PythonProcessHandler");
     }
 }

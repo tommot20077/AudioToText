@@ -56,6 +56,7 @@ public class ServiceConfig {
         createDirectoryIfNotExists(audioProperties.getPath().getOutputDirectory());
         createDirectoryIfNotExists(audioProperties.getPath().getModelDirectory());
         createDirectoryIfNotExists(audioProperties.getPath().getTempFileDirectory());
+        createDirectoryIfNotExists(audioProperties.getPath().getPythonScriptPath());
     }
 
 

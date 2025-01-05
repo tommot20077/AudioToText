@@ -54,13 +54,19 @@ public class PythonProcessHandler {
     private CompletableFuture<JsonNode> responseFuture;
 
     /**
+     * Python 執行檔名稱
+     */
+    private final String pythonName;
+
+    /**
      * 建構方法，初始化 Python 進程處理器
      *
      * @param venvDirectory 虛擬環境目錄
      *
      * @throws IOException 初始化 Python 進程處理器時出現 IO 錯誤
      */
-    public PythonProcessHandler (File venvDirectory, AudioProperties audioProperties) throws IOException {
+    public PythonProcessHandler (File venvDirectory, AudioProperties audioProperties, String pythonName) throws IOException {
+        this.pythonName = pythonName;
         this.maxProcessingTime = audioProperties.getThreshold().getMaxProcessingTime();
         ProcessBuilder pb = new ProcessBuilder(getProgramPath(venvDirectory), "PunctuationRestoration.py");
         pb.directory(venvDirectory);
@@ -98,9 +104,9 @@ public class PythonProcessHandler {
      */
     private String getProgramPath (File tempDir) {
         if (System.getProperty("os.name").toLowerCase().contains("win")) {
-            return tempDir.toPath().resolve("venv").resolve("Scripts").resolve(String.format("%s.exe", "python")).toString();
+            return tempDir.toPath().resolve(".venv").resolve("Scripts").resolve(String.format("%s.exe", pythonName)).toString();
         }
-        return tempDir.toPath().resolve("venv").resolve("bin").resolve(String.format("%s", "python")).toString();
+        return tempDir.toPath().resolve(".venv").resolve("bin").resolve(String.format("%s", pythonName)).toString();
     }
 
     /**
