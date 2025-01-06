@@ -20,6 +20,7 @@ import xyz.dowob.audiototext.service.ProcessingService;
 import xyz.dowob.audiototext.service.TaskService;
 import xyz.dowob.audiototext.strategy.SpeechRecognitionStrategy;
 import xyz.dowob.audiototext.type.ModelType;
+import xyz.dowob.audiototext.type.OutputType;
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -90,7 +91,7 @@ public class AudioServiceImp implements AudioService {
      * @return 任務ID
      */
     @Override
-    public Object audioToText(MultipartFile audioFile, ModelType type, HttpServletRequest request) {
+    public Object audioToText (MultipartFile audioFile, ModelType modelType, OutputType outputType, boolean isNeedSegments, HttpServletRequest request) {
         String taskId = UUID.randomUUID().toString();
         try {
             File tempInputFile = processingService.saveAudio(audioFile, taskId);
@@ -99,37 +100,42 @@ public class AudioServiceImp implements AudioService {
             File standardizedAudioFile = processingService.standardizeAudio(tempInputFile, taskId);
             log.debug("音訊檔案標準化成功: {}", standardizedAudioFile.getName());
 
-            String downloadUrl = generateFileUrl(request, taskId);
-
             TaskStatusDTO taskStatusDTO = new TaskStatusDTO(taskId);
             Task task = taskStatusDTO.toTask(false);
             taskService.updateTaskStatus(taskStatusDTO, false);
             taskService.saveTaskStatus(task);
 
+            final String[] downloadUrl = {generateFileUrl(request)};
             CompletableFuture.runAsync(() -> {
                 try {
-                    List<TranscriptionSegment> segments = transcribe(standardizedAudioFile, type, taskStatusDTO);
+                    List<TranscriptionSegment> segments = transcribe(standardizedAudioFile, modelType, taskStatusDTO);
                     log.debug("音訊轉譯完成: {}", segments.size());
 
                     Map<String, Object> convertMap = convertTranscriptionSegments(segments);
 
                     String punctuatedText = processingService.punctuationRestore(convertMap.get("text").toString(), taskId);
-                    log.debug("標點符號恢復完成: {}", punctuatedText.length());
 
                     Map<String, Object> result = new HashMap<>();
-                    result.put("segments", convertMap.get("segments"));
+
+                    if (isNeedSegments) {
+                        result.put("segments", convertMap.get("segments"));
+                    }
                     result.put("text", punctuatedText);
 
                     String formatResult = processingService.formatToJson(result);
 
-                    result.put("downloadUrl", downloadUrl);
+
+                    File file = processingService.saveToFile(formatResult, taskId, outputType);
+                    downloadUrl[0] += file.getName();
+                    result.put("downloadUrl", downloadUrl[0]);
+
                     updateProgressAndNotify(taskStatusDTO, 100.0, TaskStatusDTO.Status.SUCCESS, result);
 
                     task.setStatus(TaskStatusDTO.Status.SUCCESS);
                     task.setResult(formatResult);
-                    processingService.outputToFile(formatResult, taskId);
-                    task.setDownloadUrl(downloadUrl);
+                    task.setDownloadUrl(downloadUrl[0]);
                 } catch (Exception e) {
+                    updateProgressAndNotify(taskStatusDTO, 0.0, TaskStatusDTO.Status.FAILED, e.getMessage());
                     log.error("轉換失敗: ", e);
                     task.setStatus(TaskStatusDTO.Status.FAILED);
                     task.setResult(e.getMessage());
@@ -208,7 +214,6 @@ public class AudioServiceImp implements AudioService {
      * @param status   狀態
      * @param result   結果
      */
-    //todo 新增100%是否發送通知
     private void updateProgressAndNotify(TaskStatusDTO task, Double progress, TaskStatusDTO.Status status, Object result) {
         if (status != null) {
             task.setStatus(status);
@@ -338,15 +343,14 @@ public class AudioServiceImp implements AudioService {
      * 生成檔案下載的 URL
      *
      * @param request 請求
-     * @param taskId  任務ID
      *
      * @return 檔案下載的 URL
      */
-    private String generateFileUrl(HttpServletRequest request, String taskId) {
+    private String generateFileUrl (HttpServletRequest request) {
         String serverHost = request.getServerName();
         int serverPort = request.getServerPort();
         String scheme = "http".equals(request.getScheme()) ? "http" : "https";
 
-        return scheme + "://" + serverHost + ":" + serverPort + "/files/" + taskId + "_output.pdf";
+        return scheme + "://" + serverHost + ":" + serverPort + "/files/";
     }
 }

@@ -3,6 +3,7 @@ package xyz.dowob.audiototext.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.multipart.MultipartFile;
 import ws.schild.jave.EncoderException;
+import xyz.dowob.audiototext.type.OutputType;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,10 +64,11 @@ public interface ProcessingService {
      * @param result 處理後的文字內容
      * @param taskId 任務ID
      *
+     * @return 輸出的檔案
+     *
      * @throws IOException 檔案寫入時錯誤
      */
-    // todo 時間限制
-    void outputToFile(String result, String taskId) throws IOException;
+    File saveToFile (String result, String taskId, OutputType outputType) throws IOException;
 
     /**
      * 將處理後的文字內容輸出成 JSON 格式

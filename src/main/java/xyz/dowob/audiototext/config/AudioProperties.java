@@ -33,6 +33,10 @@ public class AudioProperties {
      * 閾值設定: 包含音檔處理的緩衝區大小、最大序列長度
      */
     private Threshold threshold = new Threshold();
+    /**
+     * 服務設定: 包含是否開啟標點符號還原功能
+     */
+    private Service service = new Service();
 
     @Data
     public static class Path {
@@ -101,5 +105,18 @@ public class AudioProperties {
          * 最大處理時間，單位為秒 預設為 300
          */
         private int maxProcessingTime = 300;
+    }
+
+    @Data
+    public static class Service {
+        /**
+         * 是否開啟標點符號還原功能
+         */
+        private boolean enablePunctuationRestoration = true;
+
+        /**
+         * 預設檔案的輸出格式
+         */
+        private String defaultOutputFormat = "pdf";
     }
 }

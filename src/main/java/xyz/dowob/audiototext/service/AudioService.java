@@ -5,6 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 import ws.schild.jave.EncoderException;
 import xyz.dowob.audiototext.dto.ModelInfoDTO;
 import xyz.dowob.audiototext.type.ModelType;
+import xyz.dowob.audiototext.type.OutputType;
 
 import java.io.IOException;
 import java.util.List;
@@ -25,9 +26,9 @@ public interface AudioService {
      *
      * @param file 音訊檔案
      *
-     * @return 轉換後的文字
+     * @return 轉換後的物件
      */
-    Object audioToText(MultipartFile file, ModelType type, HttpServletRequest request) throws EncoderException, IOException;
+    Object audioToText (MultipartFile file, ModelType modelType, OutputType outputType, boolean isNeedSegment, HttpServletRequest request) throws EncoderException, IOException;
 
     /**
      * 取得目前可用的轉換模型列表

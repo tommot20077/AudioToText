@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import xyz.dowob.audiototext.dto.ModelInfoDTO;
 import xyz.dowob.audiototext.service.AudioService;
 import xyz.dowob.audiototext.type.ModelType;
+import xyz.dowob.audiototext.type.OutputType;
 
 import java.util.List;
 
@@ -46,8 +47,11 @@ public class TranscriptionApiController implements ApiController {
      * @return 音訊轉文字的結果
      */
     @PostMapping("/transcription")
-    public ResponseEntity<?> transcribeAudio(
-            @RequestParam("file") MultipartFile file, @RequestParam("model") String modelType, HttpServletRequest request) {
+    public ResponseEntity<?> transcribeAudio (
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("model") String modelType,
+            @RequestParam(value = "is_need_segment", required = false, defaultValue = "true") boolean isNeedSegment,
+            @RequestParam(value = "format_type", required = false) String formatType, HttpServletRequest request) {
         try {
             if (file.isEmpty()) {
                 return createResponseEntity(createErrorResponse(request.getRequestURI(), "檔案為空", 400));
@@ -55,7 +59,8 @@ public class TranscriptionApiController implements ApiController {
                 return createResponseEntity(createErrorResponse(request.getRequestURI(), "模型類型為空", 400));
             }
             ModelType type = ModelType.getModelTypeByCode(modelType);
-            Object result = audioService.audioToText(file, type, request);
+            OutputType outputType = OutputType.getOutputTypeByType(formatType);
+            Object result = audioService.audioToText(file, type, outputType, isNeedSegment, request);
             return createResponseEntity(createSuccessResponse(request.getRequestURI(), "轉換請求成功", result));
         } catch (Exception e) {
             log.error("轉換失敗: ", e);
@@ -71,7 +76,7 @@ public class TranscriptionApiController implements ApiController {
      * @return 可用的模型列表
      */
     @GetMapping("/getAvailableModels")
-    public ResponseEntity<?> getAvailableModels(HttpServletRequest request) {
+    public ResponseEntity<?> getAvailableModels (HttpServletRequest request) {
         List<ModelInfoDTO> availableModels = audioService.getAvailableModels();
         if (availableModels.isEmpty()) {
             return createResponseEntity(createSuccessResponse(request.getRequestURI(), "無可用模型"));

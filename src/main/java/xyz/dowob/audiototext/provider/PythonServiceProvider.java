@@ -3,6 +3,7 @@ package xyz.dowob.audiototext.provider;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 import xyz.dowob.audiototext.config.AudioProperties;
@@ -11,10 +12,15 @@ import xyz.dowob.audiototext.dto.PunctuationTaskDTO;
 import xyz.dowob.audiototext.handler.PythonProcessHandler;
 
 import java.io.*;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  * Python外部服務類別，用於初始化Python服務並與Python服務進行通信，利用Python來處理句子的編點符號恢復模型
@@ -29,6 +35,7 @@ import java.util.concurrent.*;
 @Log4j2
 @Component
 @DependsOn("serviceConfig")
+@ConditionalOnProperty(name = "audio.service.enable-punctuation-restoration", havingValue = "true")
 public class PythonServiceProvider {
     /**
      * 線程池，用於管理 Python 處理器的執行緒
@@ -229,25 +236,56 @@ public class PythonServiceProvider {
     private File getResourceDirectory () throws IOException {
         File workDir = new File(PYTHON_DIRECTORY);
         if ((!workDir.exists() && workDir.mkdirs()) || !checkFileExist(workDir)) {
+            log.debug("資料有缺失複製資源到目錄: {}", workDir);
             copyResourcesToDirectory(workDir);
         }
         return workDir;
     }
 
+    /**
+     * 複製資源到目錄，用於複製 Python 腳本目錄
+     * 此方法會從 JAR 檔或資源目錄中複製資源到目標目錄
+     *
+     * @param targetDir 目標目錄
+     *
+     * @throws IOException 複製資源時可能拋出的 IO 異常
+     */
     private void copyResourcesToDirectory (File targetDir) throws IOException {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("python")) {
-            if (is == null) {
-                throw new IllegalArgumentException("找不到資源目錄: " + "python");
-            }
+        String resourcePath = "BOOT-INF/classes/python";
+        ClassLoader classLoader = getClass().getClassLoader();
+        URL resourceURL = classLoader.getResource(resourcePath);
+        if (resourceURL == null) {
+            throw new IllegalArgumentException("找不到資源目錄: " + resourcePath);
+        }
 
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
-                String fileName;
-                while ((fileName = br.readLine()) != null) {
-                    String fullPath = "python" + "/" + fileName;
-                    try (InputStream fileIs = getClass().getClassLoader().getResourceAsStream(fullPath)) {
-                        if (fileIs != null) {
+        if (resourceURL.getProtocol().equals("jar")) {
+            String jarPath = resourceURL.getPath().substring(5, resourceURL.getPath().indexOf("!"));
+            log.debug("從 JAR 檔複製資源到目錄: {}", jarPath);
+            try (JarFile jar = new JarFile(URLDecoder.decode(jarPath, StandardCharsets.UTF_8))) {
+                Enumeration<JarEntry> entries = jar.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    String entryName = entry.getName();
+                    if (entryName.startsWith(resourcePath + "/") && !entry.isDirectory()) {
+                        String fileName = entryName.substring(resourcePath.length() + 1);
+                        try (InputStream is = classLoader.getResourceAsStream(entryName)) {
+                            if (is != null) {
+                                File targetFile = new File(targetDir, fileName);
+                                Files.copy(is, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            File directory = new File(resourceURL.getPath());
+            log.debug("從資源目錄複製資源到目錄: {}", directory);
+            if (directory.isDirectory()) {
+                for (String fileName : Objects.requireNonNull(directory.list())) {
+                    try (InputStream is = classLoader.getResourceAsStream(resourcePath + "/" + fileName)) {
+                        if (is != null) {
                             File targetFile = new File(targetDir, fileName);
-                            Files.copy(fileIs, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                            Files.copy(is, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                         }
                     }
                 }
@@ -263,11 +301,14 @@ public class PythonServiceProvider {
      * @return 資源目錄是否完整
      */
     private boolean checkFileExist (File directory) {
+        log.debug("檢查資源目錄是否完整: {}", directory);
         for (String file : REQUIRED_FILES) {
             if (!new File(directory, file).exists()) {
+                log.debug("資源目錄不完整: {}", file);
                 return false;
             }
         }
+        log.debug("資源目錄完整");
         return true;
     }
 

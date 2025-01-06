@@ -129,7 +129,7 @@ public class PythonProcessHandler {
             } catch (JsonProcessingException e) {
                 log.debug("非Json格式訊息: {}", e.getMessage());
             } catch (IOException e) {
-                log.error("無法讀取 Python Process 輸出: {}", e.getMessage());
+                log.warn("無法讀取 Python Process 輸出: {}", e.getMessage());
                 if (responseFuture != null) {
                     responseFuture.completeExceptionally(e);
                     responseFuture = null;
