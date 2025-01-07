@@ -1,5 +1,6 @@
 package xyz.dowob.audiototext.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Getter
 @Setter
+@AllArgsConstructor
 public class PunctuationTaskDTO {
     /**
      * 任務 ID
@@ -33,18 +35,6 @@ public class PunctuationTaskDTO {
      * 任務的結果取回方法
      */
     private CompletableFuture<String> future;
-
-    /**
-     * 帶參數的構造方法
-     *
-     * @param taskId 任務 ID
-     * @param text   任務文本
-     */
-    public PunctuationTaskDTO (String taskId, String text) {
-        this.taskId = taskId;
-        this.text = text;
-        this.future = new CompletableFuture<>();
-    }
 
     /**
      * 重寫 hashCode 和 equals 方法，用於比較任務 ID
