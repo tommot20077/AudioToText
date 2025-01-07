@@ -136,6 +136,10 @@ public class PythonProcessHandler {
                 }
             } catch (Exception e) {
                 log.error("Python Process 監聽器錯誤: {}", e.getMessage());
+                if (responseFuture != null) {
+                    responseFuture.completeExceptionally(e);
+                    responseFuture = null;
+                }
             }
         });
         listenerThread.setDaemon(true);

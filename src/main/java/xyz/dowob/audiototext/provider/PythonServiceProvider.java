@@ -40,7 +40,7 @@ public class PythonServiceProvider {
     /**
      * 線程池，用於管理 Python 處理器的執行緒
      */
-    private final ExecutorService executorService;
+    private final ExecutorService pythonExecutor;
     /**
      * 信號量，用於限制 Python 處理器的最大數量
      */
@@ -84,7 +84,19 @@ public class PythonServiceProvider {
         this.audioProperties = audioProperties;
         this.MAX_PROCESSING_NUMBER = audioProperties.getThreshold().getMaxPythonProcess();
         this.PYTHON_DIRECTORY = audioProperties.getPath().getPythonScriptPath();
-        this.executorService = Executors.newFixedThreadPool(MAX_PROCESSING_NUMBER);
+        this.pythonExecutor = new ThreadPoolExecutor(MAX_PROCESSING_NUMBER,
+                                                     MAX_PROCESSING_NUMBER,
+                                                     0L,
+                                                     TimeUnit.MILLISECONDS,
+                                                     new LinkedBlockingQueue<>(),
+                                                     ThreadFactory -> {
+                                                         Thread thread = new Thread(ThreadFactory);
+                                                         thread.setName("Python-Service-Thread");
+                                                         thread.setDaemon(true);
+                                                         return thread;
+                                                     },
+                                                     new ThreadPoolExecutor.CallerRunsPolicy()
+        );
         this.semaphore = new Semaphore(MAX_PROCESSING_NUMBER);
     }
 
@@ -320,20 +332,26 @@ public class PythonServiceProvider {
      *
      * @return 標點符號恢復結果
      *
-     * @throws InterruptedException 獲取標點符號恢復結果時可能拋出的中斷異常
-     * @throws ExecutionException   獲取標點符號恢復結果時可能拋出的執行異常
      */
-    public synchronized String getPunctuationResult (String text, String taskId) throws InterruptedException, ExecutionException {
-        PunctuationTaskDTO task = new PunctuationTaskDTO(taskId, text);
-        boolean acquired = semaphore.tryAcquire();
-        if (acquired) {
+    public synchronized String getPunctuationResult (String text, String taskId) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        PunctuationTaskDTO task = new PunctuationTaskDTO(taskId, text, future);
+
+        if (semaphore.tryAcquire()) {
             log.debug("提交任務: {}", task);
             submitTask(task);
         } else {
             log.debug("任務進入等待隊列: {}", task);
             TASK_QUEUE.offer(task);
         }
-        return task.getFuture().get();
+
+        try {
+            log.debug("等待任務完成: {}", task);
+            return future.get(5, TimeUnit.MINUTES);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            log.error("獲取結果時發生錯誤: ", e);
+            throw new RuntimeException("處理任務失敗", e);
+        }
     }
 
     /**
@@ -343,30 +361,32 @@ public class PythonServiceProvider {
      * @param task 任務
      */
     private void submitTask (PunctuationTaskDTO task) {
-
-        try {
-            PythonProcessHandler handler = getAvailableHandler();
-            if (handler == null) {
-                throw new RuntimeException("沒有可用的 Python 處理器");
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                PythonProcessHandler handler = getAvailableHandler();
+                if (handler == null) {
+                    throw new RuntimeException("沒有可用的 Python 處理器");
+                }
+                log.debug("使用處理器: {}", handler);
+                return handler.sendText(task.getText(), task.getTaskId());
+            } catch (Exception e) {
+                log.error("Python 處理錯誤: {}", e.getMessage());
+                throw new CompletionException(e);
             }
-            String result = handler.sendText(task.getText(), task.getTaskId());
-            log.debug("Python 處理完成: {}", result);
-            task.getFuture().complete(result);
-        } catch (Exception e) {
-            log.error("Python 處理錯誤: {}", e.getMessage());
-            task.getFuture().completeExceptionally(e);
-        } finally {
+        }, pythonExecutor).whenComplete((result, throwable) -> {
+            if (throwable != null) {
+                task.getFuture().completeExceptionally(throwable);
+                log.error("任務 {} 執行失敗: {}", task.getTaskId(), throwable.getMessage());
+            } else {
+                task.getFuture().complete(result);
+                log.debug("任務 {} 完成: {}", task.getTaskId(), result);
+            }
             log.debug("釋放處理器");
             semaphore.release();
-            if (TASK_QUEUE.peek() != null) {
-                log.debug("處理等待隊列任務");
-                if (semaphore.tryAcquire()) {
-                    log.debug("獲取到處理器，提交任務");
-                    submitTask(TASK_QUEUE.poll());
-                }
+            if (TASK_QUEUE.peek() != null && semaphore.tryAcquire()) {
+                log.debug("獲取到處理器，提交下一個任務");
+                submitTask(TASK_QUEUE.poll());
             }
-        }
-        executorService.submit(() -> {
         });
     }
 
@@ -376,7 +396,7 @@ public class PythonServiceProvider {
      *
      * @return 可用的 Python 處理器
      */
-    private synchronized PythonProcessHandler getAvailableHandler () {
+    private PythonProcessHandler getAvailableHandler () {
         if (processHandlers.isEmpty()) {
             throw new RuntimeException("Python 處理器列表為空，請檢查初始化是否正確");
         }
@@ -388,10 +408,17 @@ public class PythonServiceProvider {
      * 在銷毀時，關閉所有 Python 處理器
      */
     @PreDestroy
+
     public void destroy () {
-        executorService.shutdown();
-        processHandlers.forEach(PythonProcessHandler::destroy);
-        log.info("關閉所有 PythonProcessHandler");
+        pythonExecutor.shutdown();
+        try {
+            if (!pythonExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+                pythonExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            pythonExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }
 

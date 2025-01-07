@@ -99,12 +99,22 @@ public class AudioProperties {
         /**
          * 最大 Python 處理進程數量
          */
-        private int maxPythonProcess = 3;
+        private int maxPythonProcess = getMaxProcessors();
 
         /**
          * 最大處理時間，單位為秒 預設為 300
          */
         private int maxProcessingTime = 300;
+
+        /**
+         * 取得最大處理器數量，若當前處理器數量大於1，則返回當前處理器數量減1，否則返回1
+         *
+         * @return 最大處理器數量
+         */
+        private int getMaxProcessors () {
+            int currentProcessors = Runtime.getRuntime().availableProcessors();
+            return currentProcessors > 1 ? currentProcessors - 1 : 1;
+        }
     }
 
     @Data
