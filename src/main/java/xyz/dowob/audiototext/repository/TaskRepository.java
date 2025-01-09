@@ -61,6 +61,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      *
      * @return List<Task> 任務列表 {@link Task}
      */
-    @Query("SELECT t FROM Task t WHERE t.finishTime < :time")
+    @Query("SELECT t FROM Task t WHERE t.finishTime < :time and t.isDeleted = false")
     List<Task> findAllByExpireTasks(@Param("time") LocalDateTime time);
+
+    @Query("SELECT t FROM Task t WHERE t.status = :status and t.isDeleted = false")
+    List<Task> findAllNotDelete (@Param("status") TaskStatusDTO.Status status);
 }

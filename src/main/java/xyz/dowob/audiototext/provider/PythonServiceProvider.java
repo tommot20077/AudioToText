@@ -35,7 +35,7 @@ import java.util.jar.JarFile;
 @Log4j2
 @Component
 @DependsOn("serviceConfig")
-@ConditionalOnProperty(name = "audio.service.enable-punctuation-restoration", havingValue = "true")
+@ConditionalOnProperty(name = "audio.service.enable-punctuation-restoration", havingValue = "true", matchIfMissing = true)
 public class PythonServiceProvider {
     /**
      * 線程池，用於管理 Python 處理器的執行緒
@@ -110,17 +110,16 @@ public class PythonServiceProvider {
      */
     @PostConstruct
     public void init () throws IOException, InterruptedException {
+        log.info("初始化 Python 服務提供者...");
         if (checkPythonVersion("python") && checkPythonVersion("python3")) {
             throw new RuntimeException("未偵測到 Python 環境，請安裝 Python 3");
         }
         File punctuationScriptDirectory = getResourceDirectory();
-
         createVirtualEnvironment(punctuationScriptDirectory);
         installDependencies(punctuationScriptDirectory);
-
-        for (int i = 0; i < MAX_PROCESSING_NUMBER; i++) {
-            processHandlers.add(new PythonProcessHandler(punctuationScriptDirectory, audioProperties, PYTHON_NAME));
-            log.info("初始化 PythonProcessHandler [{}]", i + 1);
+        for (int i = 1; i <= MAX_PROCESSING_NUMBER; i++) {
+            processHandlers.add(new PythonProcessHandler(punctuationScriptDirectory, audioProperties, PYTHON_NAME, i));
+            log.info("初始化 PythonProcessHandler [{}]", i);
         }
     }
 
@@ -248,10 +247,29 @@ public class PythonServiceProvider {
     private File getResourceDirectory () throws IOException {
         File workDir = new File(PYTHON_DIRECTORY);
         if ((!workDir.exists() && workDir.mkdirs()) || !checkFileExist(workDir)) {
-            log.debug("資料有缺失複製資源到目錄: {}", workDir);
+            log.info("資料有缺失，複製資源到目錄: {}", workDir);
             copyResourcesToDirectory(workDir);
         }
         return workDir;
+    }
+
+    /**
+     * 檢查文件是否存在，用於檢查資源目錄是否完整
+     *
+     * @param directory 資源目錄
+     *
+     * @return 資源目錄是否完整
+     */
+    private boolean checkFileExist (File directory) {
+        log.debug("檢查資源目錄是否完整: {}", directory);
+        for (String file : REQUIRED_FILES) {
+            if (!new File(directory, file).exists()) {
+                log.info("資源目錄不完整: {}", file);
+                return false;
+            }
+        }
+        log.debug("資源目錄完整");
+        return true;
     }
 
     /**
@@ -272,7 +290,7 @@ public class PythonServiceProvider {
 
         if (resourceURL.getProtocol().equals("jar")) {
             String jarPath = resourceURL.getPath().substring(5, resourceURL.getPath().indexOf("!"));
-            log.debug("從 JAR 檔複製資源到目錄: {}", jarPath);
+            log.info("從 JAR 檔複製資源到目錄: {}", jarPath);
             try (JarFile jar = new JarFile(URLDecoder.decode(jarPath, StandardCharsets.UTF_8))) {
                 Enumeration<JarEntry> entries = jar.entries();
                 while (entries.hasMoreElements()) {
@@ -291,7 +309,7 @@ public class PythonServiceProvider {
             }
         } else {
             File directory = new File(resourceURL.getPath());
-            log.debug("從資源目錄複製資源到目錄: {}", directory);
+            log.info("從資源目錄複製資源到目錄: {}", directory);
             if (directory.isDirectory()) {
                 for (String fileName : Objects.requireNonNull(directory.list())) {
                     try (InputStream is = classLoader.getResourceAsStream(resourcePath + "/" + fileName)) {
@@ -303,25 +321,6 @@ public class PythonServiceProvider {
                 }
             }
         }
-    }
-
-    /**
-     * 檢查文件是否存在，用於檢查資源目錄是否完整
-     *
-     * @param directory 資源目錄
-     *
-     * @return 資源目錄是否完整
-     */
-    private boolean checkFileExist (File directory) {
-        log.debug("檢查資源目錄是否完整: {}", directory);
-        for (String file : REQUIRED_FILES) {
-            if (!new File(directory, file).exists()) {
-                log.debug("資源目錄不完整: {}", file);
-                return false;
-            }
-        }
-        log.debug("資源目錄完整");
-        return true;
     }
 
     /**
@@ -366,7 +365,7 @@ public class PythonServiceProvider {
                 if (handler == null) {
                     throw new RuntimeException("沒有可用的 Python 處理器");
                 }
-                log.debug("使用處理器: {}", handler);
+                log.debug("使用處理器ID: {}", handler.getProcessHandlerId());
                 return handler.sendText(task.getText(), task.getTaskId());
             } catch (Exception e) {
                 log.error("Python 處理錯誤: {}", e.getMessage());
@@ -418,6 +417,7 @@ public class PythonServiceProvider {
             pythonExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+        log.info("Python 服務提供者已銷毀");
     }
 }
 

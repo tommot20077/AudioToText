@@ -59,13 +59,14 @@ public class TxtWriter implements FileWriter {
             writer.write("Transcription Result");
             writer.write("\n\n");
             writer.write(rootNode.get("text").asText());
-            writer.write("\n\n");
+
 
             JsonNode segments = rootNode.get("segments");
             if (segments == null) {
                 return outputPath.toFile();
             }
 
+            writer.write("\n\n");
             writer.write("Segments Timeline");
             writer.write("\n");
             writer.write("(Start time ~ End time)");

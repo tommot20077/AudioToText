@@ -82,7 +82,6 @@ public class PdfWriter implements FileWriter {
 
             Paragraph fullText = new Paragraph(rootNode.get("text").asText(), normalFont);
             document.add(fullText);
-            document.add(new Paragraph("\n\n"));
 
             JsonNode segments = rootNode.get("segments");
             if (segments == null) {
@@ -90,6 +89,7 @@ public class PdfWriter implements FileWriter {
                 return outputPath.toFile();
             }
 
+            document.add(new Paragraph("\n\n"));
             generateTitle("Segments Timeline", document);
             document.add(new Paragraph("(Start time ~ End time)", normalFont));
 

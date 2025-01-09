@@ -40,7 +40,7 @@ public class CrontabHandler {
      * 每天凌晨 1 點執行
      */
     @Scheduled(cron = "0 0 1 * * ?")
-    public void cleanCanNotFinishTasks() {
+    public void cleanCanNotFinishTasks () {
         List<Task> tasks = taskService.findAllCanNotFinishTasks(24);
         log.info("清理未完成任務: {}", tasks);
         tasks.forEach(taskService::deleteTaskStatus);
@@ -52,7 +52,7 @@ public class CrontabHandler {
      * 每小時執行一次
      */
     @Scheduled(cron = "0 0 */1 * * ?")
-    public void cleanExpireTasks() {
+    public void cleanExpireTasks () {
         List<Task> tasks = taskService.findAllByExpireTasks(24);
         log.info("清理過期任務: {}", tasks);
         File outputDirectory = new File(audioProperties.getPath().getOutputDirectory());
@@ -65,7 +65,9 @@ public class CrontabHandler {
             for (File file : files) {
                 if (file.getName().contains(taskId)) {
                     if (file.delete()) {
-                        log.debug("刪除過期檔案: {}", file.getName());
+                        task.setDeleted(true);
+                        taskService.saveTaskStatus(task);
+                        log.info("刪除過期檔案: {}", file.getName());
                     } else {
                         log.error("刪除過期檔案失敗: {}", file.getName());
                     }
@@ -74,4 +76,17 @@ public class CrontabHandler {
         });
     }
 
+    /**
+     * 定時檢查任務狀態，將失敗的任務標記為刪除
+     * 每小時執行一次
+     */
+    @Scheduled(cron = "0 0 1 * * ?")
+    public void checkTaskStatus () {
+        List<Task> tasks = taskService.findAllFailAndNotDeletedTasks();
+        log.info("檢查失敗任務狀態 {}", tasks);
+        tasks.forEach(task -> {
+            task.setDeleted(true);
+            taskService.saveTaskStatus(task);
+        });
+    }
 }

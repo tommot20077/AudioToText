@@ -3,7 +3,7 @@ package xyz.dowob.audiototext.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.multipart.MultipartFile;
 import ws.schild.jave.EncoderException;
-import xyz.dowob.audiototext.type.OutputType;
+import xyz.dowob.audiototext.component.filewriter.FileWriter;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +30,7 @@ public interface ProcessingService {
      *
      * @throws IOException 檔案讀取、建立時錯誤
      */
-    File saveAudio(MultipartFile audioFile, String taskId) throws IOException;
+    File saveAudio (MultipartFile audioFile, String taskId) throws IOException;
 
     /**
      * 轉換輸入的音訊檔案成可以被處理的格式
@@ -39,19 +39,19 @@ public interface ProcessingService {
      *
      * @return 處理後的音訊檔案
      */
-    File standardizeAudio(File audioFile, String taskId) throws IOException, EncoderException;
+    File standardizeAudio (File audioFile, String taskId) throws IOException, EncoderException;
 
     /**
      * 刪除伺服器上的暫存檔案
      *
      * @param taskId 任務ID
      */
-    void deleteTempFile(String taskId);
+    void deleteTempFile (String taskId);
 
     /**
      * 處理轉譯後的文字內容，將標點符號還原
      *
-     * @param text 轉譯後的原始文字內容
+     * @param text   轉譯後的原始文字內容
      * @param taskId 任務ID
      *
      * @return 復原標點符號後的文字內容
@@ -61,14 +61,15 @@ public interface ProcessingService {
     /**
      * 將處理後的文字內容輸出到檔案
      *
-     * @param result 處理後的文字內容
-     * @param taskId 任務ID
+     * @param result     處理後的文字內容
+     * @param taskId     任務ID
+     * @param fileWriter 檔案寫入器
      *
      * @return 輸出的檔案
      *
      * @throws IOException 檔案寫入時錯誤
      */
-    File saveToFile (String result, String taskId, OutputType outputType) throws IOException;
+    File saveToFile (String result, String taskId, FileWriter fileWriter) throws IOException;
 
     /**
      * 將處理後的文字內容輸出成 JSON 格式
@@ -78,7 +79,7 @@ public interface ProcessingService {
      *
      * @return 處理後的文字內容 JSON 格式
      */
-    default String formatToJson(Object result) {
+    default String formatToJson (Object result) {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             return objectMapper.writeValueAsString(result);

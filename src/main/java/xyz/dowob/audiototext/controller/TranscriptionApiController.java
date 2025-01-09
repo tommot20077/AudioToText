@@ -84,4 +84,20 @@ public class TranscriptionApiController implements ApiController {
         return createResponseEntity(createSuccessResponse(request.getRequestURI(), "取得可用模型成功", availableModels));
     }
 
+    /**
+     * 取得可用的轉換檔案格式的列表
+     *
+     * @param request HTTP 請求
+     *
+     * @return 可用的模型列表
+     */
+    @GetMapping("/getAvailableOutputTypes")
+    public ResponseEntity<?> getAvailableOutputTypes (HttpServletRequest request) {
+        List<OutputType> availableOutputTypes = audioService.getAvailableOutputTypes();
+        if (availableOutputTypes.isEmpty()) {
+            return createResponseEntity(createSuccessResponse(request.getRequestURI(), "無可用輸出格式"));
+        }
+        return createResponseEntity(createSuccessResponse(request.getRequestURI(), "取得可用輸出格式成功", availableOutputTypes));
+    }
+
 }

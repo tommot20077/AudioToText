@@ -65,4 +65,8 @@ public class FileOutputStrategy {
         }
         return fileWriterMap.get(type);
     }
+
+    public List<OutputType> getAvailableOutputTypes () {
+        return fileWriterMap.keySet().stream().toList();
+    }
 }

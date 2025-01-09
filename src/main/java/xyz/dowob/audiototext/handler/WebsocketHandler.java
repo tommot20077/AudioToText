@@ -64,22 +64,9 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
      * @param taskService  任務服務類
      * @param objectMapper Jackson ObjectMapper 類
      */
-    public WebsocketHandler(TaskService taskService, ObjectMapper objectMapper) {
+    public WebsocketHandler (TaskService taskService, ObjectMapper objectMapper) {
         this.taskService = taskService;
         this.objectMapper = objectMapper;
-    }
-
-    /**
-     * WebSocket 連接關閉時觸發
-     * 將 Session 從 Session Map 中移除並關閉 Session
-     *
-     * @param session WebSocket 連接 Session
-     *
-     * @throws IOException 關閉 Session 時可能拋出的異常
-     */
-    @Override
-    public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) throws IOException {
-        cleanSession(session);
     }
 
     /**
@@ -90,7 +77,8 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
      * @param session WebSocket 連接 Session
      */
     @Override
-    protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
+    protected void handleTextMessage (@NonNull WebSocketSession session, @NonNull TextMessage message) {
+        log.debug("接收到訊息: {}", message.getPayload());
         String payload = message.getPayload();
         try {
             JsonNode jsonNode = objectMapper.readTree(payload);
@@ -105,10 +93,8 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
                 return;
             }
 
-
-            TaskStatusDTO statusDTO = taskService
-                    .getTaskStatus(taskId)
-                    .orElseThrow(() -> new IllegalArgumentException("任務ID: " + taskId + " 不存在"));
+            TaskStatusDTO statusDTO = taskService.getTaskStatus(taskId)
+                                                 .orElseThrow(() -> new IllegalArgumentException("任務ID: " + taskId + " 不存在"));
             sessionMap.put(taskId, session);
             sendTaskStatus(statusDTO, session);
         } catch (Exception e) {
@@ -124,16 +110,20 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
      * @param exception 連接錯誤異常
      */
     @Override
-    public void handleTransportError(@NonNull WebSocketSession session, @NonNull Throwable exception) {
+    public void handleTransportError (@NonNull WebSocketSession session, @NonNull Throwable exception) {
         try {
             if (exception instanceof IOException) {
+                log.warn("WebSocket id: {} 連接中斷: {}", session.getId(), exception.getMessage());
                 cleanSession(session);
-                log.warn("WebSocket 連接中斷: {}", exception.getMessage());
             } else {
                 ApiResponseDTO response = createErrorResponse(Objects.requireNonNull(session.getUri()).getPath(),
-                                                              "WebSocket 連接錯誤: " + exception.getMessage(),
-                                                              400);
-                log.error("WebSocket 連接錯誤: {}", response.getMessage());
+                                                              "WebSocket 連接錯誤: " + exception.getMessage(), 400
+                );
+                if (exception instanceof IllegalArgumentException) {
+                    log.debug(exception.getMessage());
+                } else {
+                    log.error(response.getMessage());
+                }
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
             }
         } catch (Exception e) {
@@ -141,6 +131,33 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
         }
     }
 
+    /**
+     * WebSocket 連接關閉時觸發
+     * 將 Session 從 Session Map 中移除並關閉 Session
+     *
+     * @param session WebSocket 連接 Session
+     *
+     * @throws IOException 關閉 Session 時可能拋出的異常
+     */
+    @Override
+    public void afterConnectionClosed (@NonNull WebSocketSession session, @NonNull CloseStatus status) throws IOException {
+        cleanSession(session);
+    }
+
+    /**
+     * 關閉 WebSocket 連接 Session
+     * 從 Session Map 中移除 Session，並關閉 Session
+     *
+     * @param session WebSocket 連接 Session
+     *
+     * @throws IOException 關閉 Session 時可能拋出的異常
+     */
+    private void cleanSession (WebSocketSession session) throws IOException {
+        sessionMap.values().remove(session);
+        if (session != null && session.isOpen()) {
+            session.close();
+        }
+    }
 
     /**
      * 發送任務狀態信息給前端
@@ -148,7 +165,7 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
      *
      * @param taskStatusDTO 任務狀態信息
      */
-    public void sendTaskStatus(@NotNull TaskStatusDTO taskStatusDTO, WebSocketSession session) {
+    public void sendTaskStatus (@NotNull TaskStatusDTO taskStatusDTO, WebSocketSession session) {
         WebSocketSession useSession;
         if (session != null) {
             useSession = session;
@@ -163,21 +180,6 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
         } catch (Exception e) {
             log.error("發送訊息失敗: {}", e.getMessage());
             handleTransportError(useSession, e);
-        }
-    }
-
-    /**
-     * 關閉 WebSocket 連接 Session
-     * 從 Session Map 中移除 Session，並關閉 Session
-     *
-     * @param session WebSocket 連接 Session
-     *
-     * @throws IOException 關閉 Session 時可能拋出的異常
-     */
-    private void cleanSession(WebSocketSession session) throws IOException {
-        sessionMap.values().remove(session);
-        if (session != null && session.isOpen()) {
-            session.close();
         }
     }
 }

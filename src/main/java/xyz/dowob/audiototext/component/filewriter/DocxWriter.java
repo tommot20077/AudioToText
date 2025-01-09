@@ -51,14 +51,12 @@ public class DocxWriter implements FileWriter {
             fullTextRun.setText(rootNode.get("text").asText());
             fullTextRun.setFontSize(12);
 
-            document.createParagraph();
-
-
             JsonNode segments = rootNode.get("segments");
             if (segments == null) {
                 return outputPath.toFile();
             }
 
+            document.createParagraph();
             XWPFParagraph timelineTitle = document.createParagraph();
             timelineTitle.setAlignment(ParagraphAlignment.CENTER);
             XWPFRun timelineTitleRun = timelineTitle.createRun();

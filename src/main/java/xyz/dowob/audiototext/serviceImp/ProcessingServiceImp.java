@@ -10,11 +10,10 @@ import ws.schild.jave.EncoderException;
 import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
+import xyz.dowob.audiototext.component.filewriter.FileWriter;
 import xyz.dowob.audiototext.config.AudioProperties;
 import xyz.dowob.audiototext.provider.PythonServiceProvider;
 import xyz.dowob.audiototext.service.ProcessingService;
-import xyz.dowob.audiototext.strategy.FileOutputStrategy;
-import xyz.dowob.audiototext.type.OutputType;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,11 +49,6 @@ public class ProcessingServiceImp implements ProcessingService {
      * PythonServiceInitializer 類，用於初始化 Python 服務
      */
     private final Optional<PythonServiceProvider> pythonProvider;
-
-    /**
-     * 檔案輸出策略
-     */
-    private final FileOutputStrategy fileOutputStrategy;
 
     /**
      * 儲存音訊檔案
@@ -115,7 +109,7 @@ public class ProcessingServiceImp implements ProcessingService {
                 if (!tempFile.delete()) {
                     log.error("無法刪除暫存檔案: {}", tempFile.getName());
                 }
-                log.info("刪除暫存檔案: {}", tempFile.getName());
+                log.debug("刪除暫存檔案: {}", tempFile.getName());
             }
         }
     }
@@ -128,8 +122,9 @@ public class ProcessingServiceImp implements ProcessingService {
      * @return 復原標點符號後的文字內容
      */
     @Override
-    public String punctuationRestore (String text, String taskId) throws Exception {
+    public String punctuationRestore (String text, String taskId) {
         if (pythonProvider.isEmpty()) {
+            log.warn("Python 服務未初始化，無法處理標點符號，返回原始文字內容");
             return text;
         }
         return pythonProvider.get().getPunctuationResult(text, taskId);
@@ -144,8 +139,8 @@ public class ProcessingServiceImp implements ProcessingService {
      * @throws IOException 檔案寫入時錯誤
      */
     @Override
-    public File saveToFile (String result, String taskId, OutputType outputType) throws IOException {
-        return fileOutputStrategy.getFileWriter(outputType).outputToFile(result, taskId);
+    public File saveToFile (String result, String taskId, FileWriter writer) throws IOException {
+        return writer.outputToFile(result, taskId);
     }
 
     /**

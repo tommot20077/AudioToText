@@ -35,5 +35,10 @@ public interface AudioService {
      */
     List<ModelInfoDTO> getAvailableModels();
 
+    /**
+     * 取得目前可用的輸出格式列表
+     */
+    List<OutputType> getAvailableOutputTypes ();
+
 
 }

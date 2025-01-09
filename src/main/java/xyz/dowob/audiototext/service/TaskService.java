@@ -65,6 +65,15 @@ public interface TaskService {
         return null;
     }
 
+    /**
+     * 查詢所有未完成以及未刪除的任務
+     *
+     * @return List<Task> 任務列表 {@link Task}
+     */
+    default List<Task> findAllFailAndNotDeletedTasks () {
+        return null;
+    }
+
 
     /**
      * 查詢所有未完成以及指定時間戳以前的任務

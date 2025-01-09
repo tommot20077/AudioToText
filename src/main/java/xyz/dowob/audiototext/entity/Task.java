@@ -70,6 +70,12 @@ public class Task {
     @Column(name = "finish_time")
     private LocalDateTime finishTime;
 
+    /**
+     * 是否刪除
+     */
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false;
+
 
     /**
      * 在持久化之前，設置創建時間

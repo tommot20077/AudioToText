@@ -3,6 +3,7 @@ package xyz.dowob.audiototext.handler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import xyz.dowob.audiototext.config.AudioProperties;
 
@@ -32,31 +33,41 @@ public class PythonProcessHandler {
      * Python 線程類，管理 Python 進程
      */
     private final Process pythonProcess;
+
     /**
      * Python 輸出流處理器，用於向 Python 進程發送輸入
      */
     private final BufferedWriter bufferedWriter;
+
     /**
      * Python 輸入流處理器，用於讀取 Python 進程的輸出
      */
     private final BufferedReader bufferedReader;
+
     /**
      * Json 映射器，用於解析 Python 進程的輸出並轉換為 Json格式
      */
     private final ObjectMapper objectMapper = new ObjectMapper();
+
     /**
      * 最大處理時間，用於限制 Python 進程的處理時間，此項設定在配置檔{@link AudioProperties}中
      */
     private final int maxProcessingTime;
-    /**
-     * 當前處理任務的異步返回值，用於等待 Python 進程的返回結果
-     */
-    private CompletableFuture<JsonNode> responseFuture;
 
     /**
      * Python 執行檔名稱
      */
     private final String pythonName;
+    /**
+     * 此處理器的辨識 ID
+     */
+    @Getter
+    private final int processHandlerId;
+    /**
+     * 當前處理任務的異步返回值，用於等待 Python 進程的返回結果
+     */
+    private CompletableFuture<JsonNode> responseFuture;
+
 
     /**
      * 建構方法，初始化 Python 進程處理器
@@ -65,7 +76,8 @@ public class PythonProcessHandler {
      *
      * @throws IOException 初始化 Python 進程處理器時出現 IO 錯誤
      */
-    public PythonProcessHandler (File venvDirectory, AudioProperties audioProperties, String pythonName) throws IOException {
+    public PythonProcessHandler (File venvDirectory, AudioProperties audioProperties, String pythonName, int processHandlerId) throws IOException {
+        this.processHandlerId = processHandlerId;
         this.pythonName = pythonName;
         this.maxProcessingTime = audioProperties.getThreshold().getMaxProcessingTime();
         ProcessBuilder pb = new ProcessBuilder(getProgramPath(venvDirectory), "PunctuationRestoration.py");
@@ -116,6 +128,7 @@ public class PythonProcessHandler {
      * 當 Python 進程返回結果時，將結果返回給當前處理的任務
      */
     private void startListener () {
+        log.debug("Python Process 監聽器已啟動");
         Thread listenerThread = new Thread(() -> {
             String line;
             try {

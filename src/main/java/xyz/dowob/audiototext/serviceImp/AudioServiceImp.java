@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.vosk.Recognizer;
+import xyz.dowob.audiototext.component.filewriter.FileWriter;
 import xyz.dowob.audiototext.config.AudioProperties;
 import xyz.dowob.audiototext.dto.ModelInfoDTO;
 import xyz.dowob.audiototext.dto.TaskStatusDTO;
@@ -18,6 +19,7 @@ import xyz.dowob.audiototext.event.TaskUpdateEvent;
 import xyz.dowob.audiototext.service.AudioService;
 import xyz.dowob.audiototext.service.ProcessingService;
 import xyz.dowob.audiototext.service.TaskService;
+import xyz.dowob.audiototext.strategy.FileOutputStrategy;
 import xyz.dowob.audiototext.strategy.SpeechRecognitionStrategy;
 import xyz.dowob.audiototext.type.ModelType;
 import xyz.dowob.audiototext.type.OutputType;
@@ -61,6 +63,11 @@ public class AudioServiceImp implements AudioService {
      * 音訊轉換策略
      */
     private final SpeechRecognitionStrategy speechRecognitionStrategy;
+
+    /**
+     * 檔案輸出策略
+     */
+    private final FileOutputStrategy fileOutputStrategy;
 
     /**
      * 音訊處理服務類
@@ -124,8 +131,8 @@ public class AudioServiceImp implements AudioService {
 
                     String formatResult = processingService.formatToJson(result);
 
-
-                    File file = processingService.saveToFile(formatResult, taskId, outputType);
+                    FileWriter fileWriter = fileOutputStrategy.getFileWriter(outputType);
+                    File file = processingService.saveToFile(formatResult, taskId, fileWriter);
                     downloadUrl[0] += file.getName();
                     result.put("downloadUrl", downloadUrl[0]);
 
@@ -134,6 +141,7 @@ public class AudioServiceImp implements AudioService {
                     task.setStatus(TaskStatusDTO.Status.SUCCESS);
                     task.setResult(formatResult);
                     task.setDownloadUrl(downloadUrl[0]);
+                    log.info("轉換任務: {} {}", taskId, "完成");
                 } catch (Exception e) {
                     updateProgressAndNotify(taskStatusDTO, 0.0, TaskStatusDTO.Status.FAILED, e.getMessage());
                     log.error("轉換失敗: ", e);
@@ -159,8 +167,16 @@ public class AudioServiceImp implements AudioService {
      * 取得目前可用的轉換模型列表
      */
     @Override
-    public List<ModelInfoDTO> getAvailableModels() {
+    public List<ModelInfoDTO> getAvailableModels () {
         return speechRecognitionStrategy.getAvailableModels();
+    }
+
+    /**
+     * 取得目前可用的輸出格式列表
+     */
+    @Override
+    public List<OutputType> getAvailableOutputTypes () {
+        return fileOutputStrategy.getAvailableOutputTypes();
     }
 
     /**
@@ -179,9 +195,10 @@ public class AudioServiceImp implements AudioService {
      * @throws RuntimeException 音訊檔案轉換失敗時拋出異常
      */
     private List<TranscriptionSegment> transcribe (File audioFile, ModelType type, TaskStatusDTO task) {
-        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
-             Recognizer recognizer = new Recognizer(speechRecognitionStrategy.getModel(type),
-                                                    audioProperties.getStandardFormat().sampleRate)) {
+        try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile); Recognizer recognizer = new Recognizer(
+                speechRecognitionStrategy.getModel(type),
+                audioProperties.getStandardFormat().sampleRate
+        )) {
             recognizer.setWords(true);
             List<TranscriptionSegment> segments = new ArrayList<>();
             byte[] buffer = new byte[audioProperties.getThreshold().getChunkBufferSize()];
@@ -207,98 +224,13 @@ public class AudioServiceImp implements AudioService {
     }
 
     /**
-     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
-     *
-     * @param task     任務狀態
-     * @param progress 進度
-     * @param status   狀態
-     * @param result   結果
-     */
-    private void updateProgressAndNotify(TaskStatusDTO task, Double progress, TaskStatusDTO.Status status, Object result) {
-        if (status != null) {
-            task.setStatus(status);
-        }
-        if (result != null) {
-            task.setResult(result);
-        }
-        if (progress != null && progress >= 0 && progress <= 100) {
-            BigDecimal progressBigDecimal = BigDecimal.valueOf(progress).setScale(2, RoundingMode.HALF_UP);
-            task.setProgress(progressBigDecimal);
-        }
-        publisher.publishEvent(new TaskUpdateEvent(this, task));
-    }
-
-    /**
-     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
-     *
-     * @param task     任務狀態
-     * @param progress 進度
-     */
-    private void updateProgressAndNotify(TaskStatusDTO task, double progress) {
-        updateProgressAndNotify(task, progress, null, null);
-    }
-
-    /**
-     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
-     *
-     * @param task   任務狀態
-     * @param result 解析結果
-     */
-    private void updateProgressAndNotify(TaskStatusDTO task, String result) {
-        updateProgressAndNotify(task, null, null, result);
-    }
-
-    /**
-     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
-     *
-     * @param segments 解析分段字句
-     * @param result   解析結果
-     */
-    private void addResultToSegments(List<TranscriptionSegment> segments, String result) {
-        if (result != null) {
-            JsonNode jsonNode;
-            try {
-                jsonNode = objectMapper.readTree(result);
-                if (!jsonNode.isEmpty() && jsonNode.has("result") && !jsonNode.get("result").isEmpty()) {
-                    JsonNode words = jsonNode.get("result");
-                    segments.add(createTranscriptionSegment(jsonNode.get("text").asText(),
-                                                            (words.get(0).get("start").asDouble()),
-                                                            (words.get(words.size() - 1).get("end").asDouble())));
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    /**
-     * 判斷是否為有效的靜音
-     * 當音訊緩衝區的平均值小於閾值時，判斷為有效的靜音
-     * 此閾值設定於 {@link AudioProperties#getThreshold()}
-     *
-     * @param buffer    音訊緩衝區
-     * @param bytesRead 讀取的位元組數
-     *
-     * @return 是否為有效的靜音
-     */
-    @Deprecated
-    private boolean isSignificantSilence(byte[] buffer, int bytesRead) {
-        int threshold = 500;
-        int sum = 0;
-        for (int i = 0; i < bytesRead; i++) {
-            sum += Math.abs(buffer[i]);
-        }
-        return (sum / bytesRead) < threshold;
-    }
-
-    /**
      * 將解析分段字句轉換成 Map 格式，並加入完整的文字內容
      *
      * @param transcriptionSegments 解析分段字句
      *
      * @return Map 格式的解析分段字句
      */
-    private Map<String, Object> convertTranscriptionSegments(List<TranscriptionSegment> transcriptionSegments) {
+    private Map<String, Object> convertTranscriptionSegments (List<TranscriptionSegment> transcriptionSegments) {
         Map<String, Object> result = new HashMap<>();
         List<Map<String, Object>> segments = new ArrayList<>();
         StringBuilder text = new StringBuilder();
@@ -317,6 +249,61 @@ public class AudioServiceImp implements AudioService {
         return result;
     }
 
+    /**
+     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
+     *
+     * @param task     任務狀態
+     * @param progress 進度
+     * @param status   狀態
+     * @param result   結果
+     */
+    private void updateProgressAndNotify (TaskStatusDTO task, Double progress, TaskStatusDTO.Status status, Object result) {
+        if (status != null) {
+            task.setStatus(status);
+        }
+        if (result != null) {
+            task.setResult(result);
+        }
+        if (progress != null && progress >= 0 && progress <= 100) {
+            BigDecimal progressBigDecimal = BigDecimal.valueOf(progress).setScale(2, RoundingMode.HALF_UP);
+            task.setProgress(progressBigDecimal);
+        }
+        publisher.publishEvent(new TaskUpdateEvent(this, task));
+    }
+
+    /**
+     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
+     *
+     * @param segments 解析分段字句
+     * @param result   解析結果
+     */
+    private void addResultToSegments (List<TranscriptionSegment> segments, String result) {
+        if (result != null) {
+            JsonNode jsonNode;
+            try {
+                jsonNode = objectMapper.readTree(result);
+                if (!jsonNode.isEmpty() && jsonNode.has("result") && !jsonNode.get("result").isEmpty()) {
+                    JsonNode words = jsonNode.get("result");
+                    segments.add(createTranscriptionSegment(jsonNode.get("text").asText(),
+                                                            (words.get(0).get("start").asDouble()),
+                                                            (words.get(words.size() - 1).get("end").asDouble())
+                    ));
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    /**
+     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
+     *
+     * @param task     任務狀態
+     * @param progress 進度
+     */
+    private void updateProgressAndNotify (TaskStatusDTO task, double progress) {
+        updateProgressAndNotify(task, progress, null, null);
+    }
 
     /**
      * 創建解析分段字句
@@ -327,8 +314,7 @@ public class AudioServiceImp implements AudioService {
      *
      * @return 解析分段字句
      */
-    private TranscriptionSegment createTranscriptionSegment(
-            String text, double segmentStartTime, double currentTimeInSeconds) {
+    private TranscriptionSegment createTranscriptionSegment (String text, double segmentStartTime, double currentTimeInSeconds) {
         if (!text.isEmpty()) {
             TranscriptionSegment transcriptionSegment = new TranscriptionSegment();
             transcriptionSegment.setText(text);
@@ -337,6 +323,36 @@ public class AudioServiceImp implements AudioService {
             return transcriptionSegment;
         }
         return null;
+    }
+
+    /**
+     * 更新任務狀態，並發送任務狀態更新事件，通知前端進行任務狀態的更新
+     *
+     * @param task   任務狀態
+     * @param result 解析結果
+     */
+    private void updateProgressAndNotify (TaskStatusDTO task, String result) {
+        updateProgressAndNotify(task, null, null, result);
+    }
+
+    /**
+     * 判斷是否為有效的靜音
+     * 當音訊緩衝區的平均值小於閾值時，判斷為有效的靜音
+     * 此閾值設定於 {@link AudioProperties#getThreshold()}
+     *
+     * @param buffer    音訊緩衝區
+     * @param bytesRead 讀取的位元組數
+     *
+     * @return 是否為有效的靜音
+     */
+    @Deprecated
+    private boolean isSignificantSilence (byte[] buffer, int bytesRead) {
+        int threshold = 500;
+        int sum = 0;
+        for (int i = 0; i < bytesRead; i++) {
+            sum += Math.abs(buffer[i]);
+        }
+        return (sum / bytesRead) < threshold;
     }
 
     /**
