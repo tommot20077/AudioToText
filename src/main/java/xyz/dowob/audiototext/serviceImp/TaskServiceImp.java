@@ -81,8 +81,12 @@ public class TaskServiceImp implements TaskService {
      * @return Task 任務
      */
     @Override
-    public Task findTaskByTaskIdAndStatus(String taskId, List<TaskStatusDTO.Status> status) {
-        return taskRepository.findByTaskIdAndStatuses(taskId, status);
+    public final Task findTaskByTaskId (String taskId, TaskStatusDTO.Status... status) {
+        if (status.length == 0) {
+            return taskRepository.findByTaskId(taskId);
+        }
+        List<TaskStatusDTO.Status> statuses = List.of(status);
+        return taskRepository.findByTaskIdAndStatuses(taskId, statuses);
     }
 
     /**

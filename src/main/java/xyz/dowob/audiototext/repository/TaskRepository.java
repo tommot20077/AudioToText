@@ -32,6 +32,8 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      */
     void deleteByTaskId(String taskId);
 
+    Task findByTaskId (String taskId);
+
     /**
      * 根據任務 ID 以及任務狀態 查詢任務
      *

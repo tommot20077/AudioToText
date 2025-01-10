@@ -346,9 +346,12 @@ public class PythonServiceProvider {
         try {
             log.debug("等待任務完成: {}", task);
             return future.get(5, TimeUnit.MINUTES);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        } catch (InterruptedException | ExecutionException e) {
             log.error("獲取結果時發生錯誤: ", e);
             throw new RuntimeException("處理任務失敗", e);
+        } catch (TimeoutException e) {
+            log.error("獲取結果超時: ", e);
+            throw new RuntimeException("處理任務超時", e);
         }
     }
 

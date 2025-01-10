@@ -1,5 +1,6 @@
 package xyz.dowob.audiototext.handler;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +15,7 @@ import xyz.dowob.audiototext.controller.ApiController;
 import xyz.dowob.audiototext.dto.ApiResponseDTO;
 import xyz.dowob.audiototext.dto.TaskStatusDTO;
 import xyz.dowob.audiototext.entity.Task;
+import xyz.dowob.audiototext.entity.TranscriptionSegment;
 import xyz.dowob.audiototext.service.TaskService;
 
 import java.io.IOException;
@@ -83,11 +85,20 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
         try {
             JsonNode jsonNode = objectMapper.readTree(payload);
             String taskId = jsonNode.get("taskId").asText();
-            Task task = taskService.findTaskByTaskIdAndStatus(taskId, List.of(TaskStatusDTO.Status.SUCCESS, TaskStatusDTO.Status.FAILED));
+            Task task = taskService.findTaskByTaskId(taskId, TaskStatusDTO.Status.SUCCESS, TaskStatusDTO.Status.FAILED);
             if (task != null) {
                 HashMap<String, Object> result = new HashMap<>();
                 result.put("downloadUrl", task.getDownloadUrl());
-                result.put("data", objectMapper.readTree(task.getResult()));
+                if (task.getStatus() == TaskStatusDTO.Status.FAILED) {
+                    JsonNode errorNode = objectMapper.readTree(task.getResult());
+                    result.put("error", errorNode.get("error").asText());
+                } else {
+                    JsonNode resultNode = objectMapper.readTree(task.getResult());
+                    List<TranscriptionSegment> segments = objectMapper.convertValue(resultNode.get("segments"), new TypeReference<>() {
+                    });
+                    result.put("text", resultNode.get("text").asText());
+                    result.put("segments", segments);
+                }
                 TaskStatusDTO statusDTO = new TaskStatusDTO(taskId, new BigDecimal("100.0"), task.getStatus(), result);
                 sendTaskStatus(statusDTO, session);
                 return;
@@ -117,7 +128,8 @@ public class WebsocketHandler extends TextWebSocketHandler implements ApiControl
                 cleanSession(session);
             } else {
                 ApiResponseDTO response = createErrorResponse(Objects.requireNonNull(session.getUri()).getPath(),
-                                                              "WebSocket 連接錯誤: " + exception.getMessage(), 400
+                                                              "WebSocket 連接錯誤: " + exception.getMessage(),
+                                                              400
                 );
                 if (exception instanceof IllegalArgumentException) {
                     log.debug(exception.getMessage());

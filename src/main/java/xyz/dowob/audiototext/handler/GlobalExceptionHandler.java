@@ -1,0 +1,60 @@
+package xyz.dowob.audiototext.handler;
+
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import xyz.dowob.audiototext.config.AudioProperties;
+import xyz.dowob.audiototext.controller.ApiController;
+import xyz.dowob.audiototext.dto.TaskStatusDTO;
+import xyz.dowob.audiototext.entity.Task;
+import xyz.dowob.audiototext.service.TaskService;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.regex.Pattern;
+
+/**
+ * @author yuan
+ * @program AudioToText
+ * @ClassName GlobalExceptionHandler
+ * @create 2025/1/10
+ * @Version 1.0
+ **/
+
+@ControllerAdvice
+@RequiredArgsConstructor
+public class GlobalExceptionHandler implements ApiController {
+    private final TaskService taskService;
+    private final AudioProperties audioProperties;
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    Pattern pattern = Pattern.compile("/files/|_output\\.[^/]+");
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<?> handleNoHandlerFoundException (HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        if (requestURI.startsWith("/file")) {
+            String taskId = pattern.matcher(requestURI).replaceAll("");
+            Task task = taskService.findTaskByTaskId(taskId);
+            if (task == null || task.getStatus() == TaskStatusDTO.Status.FAILED) {
+                String errorMessage = String.format("沒有找到此任務的檔案: %s", taskId);
+                return createResponseEntity(createErrorResponse(requestURI, errorMessage, 404));
+            } else {
+                LocalDateTime expireTime = task.getFinishTime().plusHours(audioProperties.getService().getOutputFileExpiredTime());
+                String formatTime = expireTime.format(formatter);
+                String errorMessage = String.format("此文件: %s 已在 %s 過期", taskId, formatTime);
+                return createResponseEntity(createErrorResponse(requestURI, errorMessage, 404));
+            }
+        } else {
+            return createResponseEntity(createErrorResponse(requestURI, "沒有找到請求的路徑", 404));
+        }
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleException (Exception ex, HttpServletRequest request) {
+        return createResponseEntity(createErrorResponse(request.getRequestURI(), ex.getMessage()));
+    }
+
+}

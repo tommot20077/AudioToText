@@ -146,7 +146,7 @@ public class AudioServiceImp implements AudioService {
                     updateProgressAndNotify(taskStatusDTO, 0.0, TaskStatusDTO.Status.FAILED, e.getMessage());
                     log.error("轉換失敗: ", e);
                     task.setStatus(TaskStatusDTO.Status.FAILED);
-                    task.setResult(e.getMessage());
+                    task.setResult(objectMapper.createObjectNode().put("error", e.getMessage()).toString());
                 } finally {
                     task.setFinishTime(LocalDateTime.now());
                     taskService.updateTaskStatus(taskStatusDTO, true);

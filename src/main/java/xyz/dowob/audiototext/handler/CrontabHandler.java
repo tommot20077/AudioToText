@@ -36,24 +36,30 @@ public class CrontabHandler {
     private final AudioProperties audioProperties;
 
     /**
-     * 定時清理未完成任務，清理 24 小時後尚未完成的任務
+     * 定時清理未完成任務，清理 1 小時後尚未完成的任務
+     * 當前時間 - 任務創建時間 > 1 小時的任務將被清理，用於處理無法完成的任務
      * 每天凌晨 1 點執行
      */
     @Scheduled(cron = "0 0 1 * * ?")
     public void cleanCanNotFinishTasks () {
-        List<Task> tasks = taskService.findAllCanNotFinishTasks(24);
+        List<Task> tasks = taskService.findAllCanNotFinishTasks(1);
         log.info("清理未完成任務: {}", tasks);
         tasks.forEach(taskService::deleteTaskStatus);
     }
 
     /**
      * 定時清理過期任務的下載檔案
-     * 當前時間 - 任務結束時間 > 24 小時的任務將被清理
+     * 當前時間 - 任務結束時間 > 設定清理時間的任務將被清理
+     * 清理時間設定於 application.yml 中的 {@link AudioProperties.Service} 中
      * 每小時執行一次
      */
     @Scheduled(cron = "0 0 */1 * * ?")
     public void cleanExpireTasks () {
-        List<Task> tasks = taskService.findAllByExpireTasks(24);
+        int expireTimeHour = audioProperties.getService().getOutputFileExpiredTime();
+        if (expireTimeHour <= 0) {
+            return;
+        }
+        List<Task> tasks = taskService.findAllByExpireTasks(expireTimeHour);
         log.info("清理過期任務: {}", tasks);
         File outputDirectory = new File(audioProperties.getPath().getOutputDirectory());
         File[] files = outputDirectory.listFiles();

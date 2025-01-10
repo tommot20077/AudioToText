@@ -127,6 +127,7 @@ public class AudioProperties {
     public static class Service {
         /**
          * 是否開啟標點符號還原功能
+         * 預設為 true
          */
         private boolean enablePunctuationRestoration = true;
 
@@ -134,5 +135,12 @@ public class AudioProperties {
          * 預設檔案的輸出格式
          */
         private String defaultOutputFormat = "pdf";
+
+        /**
+         * 輸出檔案保存時間，單位為小時 預設為 72
+         * 當設定為0時，則不會刪除任何檔案
+         * 超過此時間的檔案將會被刪除
+         */
+        private int outputFileExpiredTime = 72;
     }
 }
