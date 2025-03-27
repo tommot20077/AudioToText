@@ -48,6 +48,7 @@ public class ServiceConfig {
 
     /**
      * 初始化創建運行時所需的目錄，由配置檔案中的路徑設定
+     * {@link AudioProperties.Path}
      *
      * @throws IOException 無法建立目錄
      */

@@ -85,6 +85,4 @@ public interface TaskService {
      * @param taskId 任務ID
      */
     Optional<TaskStatusDTO> getTaskStatus (String taskId);
-
-
 }

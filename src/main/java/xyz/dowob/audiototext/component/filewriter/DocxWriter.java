@@ -16,21 +16,58 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 
+/**
+ * Microsoft Word 文檔寫入器，用於將結果寫入到 docx 文件中
+ * 實現了 FileWriter 接口，規範了將處理後的文字內容輸出到 docx 文件的方法
+ *
+ * @author yuan
+ * @program AudioToText
+ * @ClassName DocxWriter
+ * @create 2025/1/6
+ * @Version 1.0
+ */
 @Log4j2
 @Component
 public class DocxWriter implements FileWriter {
+    /**
+     * 音檔處理的配置文件
+     */
     private final AudioProperties audioProperties;
+
+    /**
+     * 物件映射器
+     */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * 用於構造 DocxWriter 對象
+     *
+     * @param audioProperties 音檔處理的配置文件
+     */
     public DocxWriter (AudioProperties audioProperties) {
         this.audioProperties = audioProperties;
     }
 
+    /**
+     * 取得此類型的輸出類型
+     *
+     * @return 輸出類型 {@link OutputType}
+     */
     @Override
     public OutputType getType () {
         return OutputType.DOCX;
     }
 
+    /**
+     * 將處理後的文字內容輸出到 docx 文件
+     *
+     * @param result 處理後的文字內容
+     * @param taskId 任務ID
+     *
+     * @return 輸出的 docx 文件
+     *
+     * @throws IOException 檔案寫入時錯誤
+     */
     @Override
     public File outputToFile (String result, String taskId) throws IOException {
         Path outputPath = Path.of(audioProperties.getPath().getOutputDirectory(), String.format("%s_output.docx", taskId));

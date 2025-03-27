@@ -41,7 +41,7 @@ public class CrontabHandler {
      * 每天凌晨 1 點執行
      */
     @Scheduled(cron = "0 0 1 * * ?")
-    public void cleanCanNotFinishTasks () {
+    public void cleanCanNotFinishTasks() {
         List<Task> tasks = taskService.findAllCanNotFinishTasks(1);
         log.info("清理未完成任務: {}", tasks);
         tasks.forEach(taskService::deleteTaskStatus);
@@ -50,11 +50,11 @@ public class CrontabHandler {
     /**
      * 定時清理過期任務的下載檔案
      * 當前時間 - 任務結束時間 > 設定清理時間的任務將被清理
-     * 清理時間設定於 application.yml 中的 {@link AudioProperties.Service} 中
+     * 清理時間設定於 AudioProperties 中的 {@link AudioProperties.Service} 中
      * 每小時執行一次
      */
     @Scheduled(cron = "0 0 */1 * * ?")
-    public void cleanExpireTasks () {
+    public void cleanExpireTasks() {
         int expireTimeHour = audioProperties.getService().getOutputFileExpiredTime();
         if (expireTimeHour <= 0) {
             return;
@@ -87,7 +87,7 @@ public class CrontabHandler {
      * 每小時執行一次
      */
     @Scheduled(cron = "0 0 1 * * ?")
-    public void checkTaskStatus () {
+    public void checkTaskStatus() {
         List<Task> tasks = taskService.findAllFailAndNotDeletedTasks();
         log.info("檢查失敗任務狀態 {}", tasks);
         tasks.forEach(task -> {

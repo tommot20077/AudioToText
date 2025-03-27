@@ -8,7 +8,7 @@ import xyz.dowob.audiototext.dto.TaskStatusDTO;
  * 任務更新事件，用於通知 WebSocketHandler 進行 WebSocket 通知
  * 包含任務的狀態信息，用於通知前端進行更新
  * 任務的狀態信息包含任務 ID、任務狀態、進度、結果等
- * 繼承 ApplicationEvent 事件類
+ * 繼承 ApplicationEvent 事件類，使用 TaskStatusDTO 作為事件的數據
  *
  * @author yuan
  * @program AudioToText

@@ -38,3 +38,5 @@ build/
 /plugin/**
 /output/
 /src/main/resources/application-prod.yml
+/docker-compose.yml
+/Dockerfile

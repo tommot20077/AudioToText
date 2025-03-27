@@ -29,6 +29,7 @@ public class TaskListener implements ApplicationListener<TaskUpdateEvent> {
     private final WebsocketHandler websocketHandler;
 
     /**
+     * 當接收到任務更新事件時，通知 WebSocketHandler 進行 WebSocket 通知
      * @param event 任務更新事件
      */
     @Override

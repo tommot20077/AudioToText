@@ -98,7 +98,7 @@ public class AudioServiceImp implements AudioService {
      * @return 任務ID
      */
     @Override
-    public Object audioToText (MultipartFile audioFile, ModelType modelType, OutputType outputType, boolean isNeedSegments, HttpServletRequest request) {
+    public Object audioToText(MultipartFile audioFile, ModelType modelType, OutputType outputType, boolean isNeedSegments, HttpServletRequest request) {
         String taskId = UUID.randomUUID().toString();
         try {
             File tempInputFile = processingService.saveAudio(audioFile, taskId);
@@ -165,18 +165,37 @@ public class AudioServiceImp implements AudioService {
 
     /**
      * 取得目前可用的轉換模型列表
+     *
+     * @return 轉換模型列表
      */
     @Override
-    public List<ModelInfoDTO> getAvailableModels () {
+    public List<ModelInfoDTO> getAvailableModels() {
         return speechRecognitionStrategy.getAvailableModels();
     }
 
     /**
      * 取得目前可用的輸出格式列表
+     *
+     * @return 輸出格式列表
      */
     @Override
-    public List<OutputType> getAvailableOutputTypes () {
+    public List<OutputType> getAvailableOutputTypes() {
         return fileOutputStrategy.getAvailableOutputTypes();
+    }
+
+    /**
+     * 生成檔案下載的 URL
+     *
+     * @param request 請求
+     *
+     * @return 檔案下載的 URL
+     */
+    private String generateFileUrl(HttpServletRequest request) {
+        String serverHost = request.getServerName();
+        int serverPort = request.getServerPort();
+        String scheme = "http".equals(request.getScheme()) ? "http" : "https";
+
+        return scheme + "://" + serverHost + ":" + serverPort + "/files/";
     }
 
     /**
@@ -194,7 +213,7 @@ public class AudioServiceImp implements AudioService {
      *
      * @throws RuntimeException 音訊檔案轉換失敗時拋出異常
      */
-    private List<TranscriptionSegment> transcribe (File audioFile, ModelType type, TaskStatusDTO task) {
+    private List<TranscriptionSegment> transcribe(File audioFile, ModelType type, TaskStatusDTO task) {
         try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile); Recognizer recognizer = new Recognizer(
                 speechRecognitionStrategy.getModel(type),
                 audioProperties.getStandardFormat().sampleRate
@@ -230,7 +249,7 @@ public class AudioServiceImp implements AudioService {
      *
      * @return Map 格式的解析分段字句
      */
-    private Map<String, Object> convertTranscriptionSegments (List<TranscriptionSegment> transcriptionSegments) {
+    private Map<String, Object> convertTranscriptionSegments(List<TranscriptionSegment> transcriptionSegments) {
         Map<String, Object> result = new HashMap<>();
         List<Map<String, Object>> segments = new ArrayList<>();
         StringBuilder text = new StringBuilder();
@@ -257,7 +276,7 @@ public class AudioServiceImp implements AudioService {
      * @param status   狀態
      * @param result   結果
      */
-    private void updateProgressAndNotify (TaskStatusDTO task, Double progress, TaskStatusDTO.Status status, Object result) {
+    private void updateProgressAndNotify(TaskStatusDTO task, Double progress, TaskStatusDTO.Status status, Object result) {
         if (status != null) {
             task.setStatus(status);
         }
@@ -277,7 +296,7 @@ public class AudioServiceImp implements AudioService {
      * @param segments 解析分段字句
      * @param result   解析結果
      */
-    private void addResultToSegments (List<TranscriptionSegment> segments, String result) {
+    private void addResultToSegments(List<TranscriptionSegment> segments, String result) {
         if (result != null) {
             JsonNode jsonNode;
             try {
@@ -301,7 +320,7 @@ public class AudioServiceImp implements AudioService {
      * @param task     任務狀態
      * @param progress 進度
      */
-    private void updateProgressAndNotify (TaskStatusDTO task, double progress) {
+    private void updateProgressAndNotify(TaskStatusDTO task, double progress) {
         updateProgressAndNotify(task, progress, null, null);
     }
 
@@ -314,7 +333,7 @@ public class AudioServiceImp implements AudioService {
      *
      * @return 解析分段字句
      */
-    private TranscriptionSegment createTranscriptionSegment (String text, double segmentStartTime, double currentTimeInSeconds) {
+    private TranscriptionSegment createTranscriptionSegment(String text, double segmentStartTime, double currentTimeInSeconds) {
         if (!text.isEmpty()) {
             TranscriptionSegment transcriptionSegment = new TranscriptionSegment();
             transcriptionSegment.setText(text);
@@ -331,7 +350,7 @@ public class AudioServiceImp implements AudioService {
      * @param task   任務狀態
      * @param result 解析結果
      */
-    private void updateProgressAndNotify (TaskStatusDTO task, String result) {
+    private void updateProgressAndNotify(TaskStatusDTO task, String result) {
         updateProgressAndNotify(task, null, null, result);
     }
 
@@ -346,7 +365,7 @@ public class AudioServiceImp implements AudioService {
      * @return 是否為有效的靜音
      */
     @Deprecated
-    private boolean isSignificantSilence (byte[] buffer, int bytesRead) {
+    private boolean isSignificantSilence(byte[] buffer, int bytesRead) {
         int threshold = 500;
         int sum = 0;
         for (int i = 0; i < bytesRead; i++) {
@@ -354,19 +373,5 @@ public class AudioServiceImp implements AudioService {
         }
         return (sum / bytesRead) < threshold;
     }
-
-    /**
-     * 生成檔案下載的 URL
-     *
-     * @param request 請求
-     *
-     * @return 檔案下載的 URL
-     */
-    private String generateFileUrl (HttpServletRequest request) {
-        String serverHost = request.getServerName();
-        int serverPort = request.getServerPort();
-        String scheme = "http".equals(request.getScheme()) ? "http" : "https";
-
-        return scheme + "://" + serverHost + ":" + serverPort + "/files/";
-    }
 }
+//todo 語音預處理雜訊消除

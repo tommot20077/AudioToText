@@ -7,7 +7,7 @@ import java.io.IOException;
 
 /**
  * 將處理後的文字內容輸出到檔案
- * 此類實現了FileWriter接口，規範了將處理後的文字內容輸出到檔案的方法
+ * 此接口定義了將處理後的文字內容輸出到檔案的方法
  *
  * @author yuan
  * @program PunctuationRestoration.py

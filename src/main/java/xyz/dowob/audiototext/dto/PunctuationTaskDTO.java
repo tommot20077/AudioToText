@@ -27,10 +27,12 @@ public class PunctuationTaskDTO {
      * 任務 ID
      */
     private String taskId;
+
     /**
      * 任務文本
      */
     private String text;
+
     /**
      * 任務的結果取回方法
      */

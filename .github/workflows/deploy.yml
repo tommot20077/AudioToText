@@ -1,0 +1,251 @@
+name: 部屬到生產環境
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+
+jobs:
+  deploy_backend:
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+    steps:
+      - name: 部署開始通知
+        run: echo "開始部署流程..."
+
+      - name: 設置 SSH Key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 添加主機
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 確定部署環境
+        id: set_env
+        run: |
+          if [[ $GITHUB_REF == refs/heads/master ]]; then
+            echo "環境: 正式環境 (master 分支)"
+            echo "ENV_NAME=正式環境" >> $GITHUB_OUTPUT
+          else
+            echo "環境: 開發環境 (develop 分支)"
+            echo "ENV_NAME=開發環境" >> $GITHUB_OUTPUT
+          fi
+          echo "BRANCH=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+
+      - name: 在 VPS 上部署後端
+        id: deploy_backend
+        run: |
+          echo "::group::後端部署進度"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+          
+            # 顯示部署信息
+            echo "部署信息:"
+            echo "  - 時間: $(date)"
+            echo "  - 分支: ${GITHUB_REF##*/}"
+            echo "  - 提交: ${GITHUB_SHA}"
+          
+            # 進入專案目錄
+            cd /root/dev/AudioToText
+            echo "更新到最新代碼"
+          
+            # 拉取最新代碼確保獲取所有遠端變更
+            git fetch --all
+          
+            # 強制同步到遠端分支
+            git reset --hard origin/$(git rev-parse --abbrev-ref HEAD)
+          
+            # 使用 Maven 構建 JAR (使用 OpenJDK 21)
+            echo "構建應用"
+            chmod +x mvnw
+            ./mvnw clean package -DskipTests
+          
+            # 確認 target 目錄內是否有 JAR 文件
+            JAR_FILE=$(find target -maxdepth 1 -name "*.jar" | head -n 1)
+
+            if [ -z "$JAR_FILE" ]; then
+              echo "構建失敗: JAR 文件不存在"
+              exit 1
+            else
+              echo "構建成功: 找到 JAR => $JAR_FILE"
+            fi
+          
+            echo "停止現有服務"
+            # 使用 docker compose 停止現有服務
+            docker compose down audio-end
+          
+            # 刪除舊的映像檔 (若存在)
+            if [ "$(docker images -q audio-end:latest)" ]; then
+              echo "刪除舊映像檔"
+              docker rmi audio-end:latest
+            fi
+          
+            # 清理無用的映像檔
+            docker image prune -f
+          
+            # 使用 docker compose 重新構建並啟動服務
+            echo "構建新容器"
+            docker compose build audio-end
+          
+            echo "啟動服務"
+            docker compose up -d audio-end
+          
+            # 檢查服務狀態
+            echo "檢查服務狀態"
+            docker ps | grep audio-end
+          
+            # 等待服務啟動
+            echo "等待服務啟動 (10秒)"
+            sleep 10
+          
+            # 檢查日誌
+            echo "最近日誌:"
+            docker logs --tail 50 audio-end
+          
+            # 檢查服務健康狀態
+            echo "健康檢查"
+            if docker ps | grep audio-end | grep -q "Up"; then
+              echo "服務運行正常"
+            else
+              echo "服務可能未正常運行"
+              exit 1
+            fi
+          EOF
+          echo "::endgroup::"
+
+  deploy_frontend:
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+    steps:
+      - name: 部署開始通知
+        run: echo "開始部署流程..."
+
+      - name: 設置 SSH Key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 添加主機
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 確定部署環境
+        id: set_env
+        run: |
+          if [[ $GITHUB_REF == refs/heads/master ]]; then
+            echo "環境: 正式環境 (master 分支)"
+            echo "ENV_NAME=正式環境" >> $GITHUB_OUTPUT
+          else
+            echo "環境: 開發環境 (develop 分支)"
+            echo "ENV_NAME=開發環境" >> $GITHUB_OUTPUT
+          fi
+          echo "BRANCH=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+
+      - name: 在 VPS 上部署前端
+        id: deploy_frontend
+        run: |
+          echo "::group::前端部署進度"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+
+            # 進入前端專案目錄
+            cd /root/dev/AudioToText-front
+            echo "更新前端代碼"
+
+            # 拉取最新代碼確保獲取所有遠端變更
+            git fetch --all
+
+            # 強制同步到遠端分支
+            git reset --hard origin/$(git rev-parse --abbrev-ref HEAD)
+
+            # 進入主專案目錄
+            cd /root/dev/AudioToText
+
+            echo "停止現有前端服務"
+            # 使用 docker compose 停止現有服務
+            docker compose down audio-front
+
+            # 刪除舊的映像檔 (若存在)
+            if [ "$(docker images -q audio-front:latest)" ]; then
+              echo "刪除舊前端映像檔"
+              docker rmi audio-front:latest
+            fi
+
+            # 清理無用的映像檔
+            docker image prune -f
+
+            # 使用 docker compose 重新構建並啟動前端服務
+            echo "構建新前端容器"
+            docker compose build audio-front
+
+            echo "啟動前端服務"
+            docker compose up -d audio-front
+
+            # 檢查服務狀態
+            echo "檢查前端服務狀態"
+            docker ps | grep audio-front
+          EOF
+          echo "::endgroup::"
+
+  check_status:
+    needs: [ deploy_backend, deploy_frontend ]
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+    steps:
+      - name: 部署結果通知
+        run: echo "部署流程完成..."
+
+      - name: 設置 SSH Key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 添加主機
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 健康檢查
+        id: health_check
+        run: |
+          echo "::group::健康檢查"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            # 執行應用健康檢查
+            echo "執行應用健康檢查"
+            HEALTH_CHECK_URL="http://127.0.0.1:8077/actuator/health"
+
+            # 嘗試次數
+            MAX_ATTEMPTS=5
+            ATTEMPT=1
+
+            while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+              echo "嘗試 $ATTEMPT/$MAX_ATTEMPTS..."
+              RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_CHECK_URL)
+
+              if [ "$RESPONSE" = "200" ]; then
+                echo "健康檢查通過!"
+                exit 0
+              else
+                echo "健康檢查失敗，狀態碼: $RESPONSE"
+                if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                  echo "等待 20 秒後重試..."
+                  sleep 20
+                fi
+              fi
+
+              ATTEMPT=$((ATTEMPT+1))
+            done
+
+            echo "健康檢查失敗: 應用未能在指定時間內就緒"
+            exit 1
+          EOF
+          echo "::endgroup::"

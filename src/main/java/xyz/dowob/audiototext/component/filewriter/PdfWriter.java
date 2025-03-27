@@ -27,9 +27,21 @@ import java.nio.file.Path;
 @Log4j2
 @Component
 public class PdfWriter implements FileWriter {
+    /**
+     * 音檔處理的配置文件
+     */
     private final AudioProperties audioProperties;
+
+    /**
+     * 物件映射器
+     */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * 用於構造 PdfWriter 對象
+     *
+     * @param audioProperties 音檔處理的配置文件
+     */
     public PdfWriter (AudioProperties audioProperties) {
         this.audioProperties = audioProperties;
     }

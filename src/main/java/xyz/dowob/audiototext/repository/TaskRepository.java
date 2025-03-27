@@ -24,7 +24,6 @@ import java.util.List;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
-
     /**
      * 根據任務 ID 刪除任務
      *
@@ -32,6 +31,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      */
     void deleteByTaskId(String taskId);
 
+    /**
+     * 根據任務 ID 查詢任務
+     *
+     * @param taskId 任務 ID
+     *
+     * @return 任務 {@link Task}
+     */
     Task findByTaskId (String taskId);
 
     /**
@@ -66,6 +72,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("SELECT t FROM Task t WHERE t.finishTime < :time and t.isDeleted = false")
     List<Task> findAllByExpireTasks(@Param("time") LocalDateTime time);
 
+    /**
+     * 查詢所有未完成以及未刪除的任務
+     *
+     * @param status 任務狀態
+     *
+     * @return List<Task> 任務列表 {@link Task}
+     */
     @Query("SELECT t FROM Task t WHERE t.status = :status and t.isDeleted = false")
     List<Task> findAllNotDelete (@Param("status") TaskStatusDTO.Status status);
 }

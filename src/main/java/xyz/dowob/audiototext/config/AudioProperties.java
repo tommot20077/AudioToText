@@ -16,8 +16,8 @@ import org.springframework.context.annotation.Configuration;
  **/
 
 @Data
-@ConfigurationProperties(prefix = "audio")
 @Configuration
+@ConfigurationProperties(prefix = "audio")
 public class AudioProperties {
     /**
      * 路徑設定: 設定音檔的暫存、模型、輸出等路徑
@@ -33,6 +33,7 @@ public class AudioProperties {
      * 閾值設定: 包含音檔處理的緩衝區大小、最大序列長度
      */
     private Threshold threshold = new Threshold();
+
     /**
      * 服務設定: 包含是否開啟標點符號還原功能
      */

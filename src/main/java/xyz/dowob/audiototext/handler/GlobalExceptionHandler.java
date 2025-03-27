@@ -17,6 +17,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
 
 /**
+ * 全局異常處理器，用於處理全局的異常，返回統一的異常信息
+ * 實現 ApiController 接口，提供了一些常用的方法
  * @author yuan
  * @program AudioToText
  * @ClassName GlobalExceptionHandler
@@ -27,11 +29,35 @@ import java.util.regex.Pattern;
 @ControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler implements ApiController {
+
+    /**
+     * 任務服務類，用於操作任務的增刪改查
+     */
     private final TaskService taskService;
+
+    /**
+     * 音檔配置類: 包含音檔的路徑、格式、閾值等設定
+     */
     private final AudioProperties audioProperties;
+
+    /**
+     * 日期時間格式化器
+     */
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /**
+     * 正則表達式模式，用於匹配文件路徑
+     */
     Pattern pattern = Pattern.compile("/files/|_output\\.[^/]+");
 
+    /**
+     * 全局異常處理器，處理 NoResourceFoundException 異常
+     * 當請求的路徑不存在時，返回 404 狀態碼
+     *
+     * @param request HTTP 請求
+     *
+     * @return 響應實體
+     */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<?> handleNoHandlerFoundException (HttpServletRequest request) {
         String requestURI = request.getRequestURI();
@@ -52,6 +78,13 @@ public class GlobalExceptionHandler implements ApiController {
         }
     }
 
+    /**
+     * 全局異常處理器，處理 Exception 異常
+     * 當發生異常時，返回 500 狀態碼
+     * @param ex 異常
+     * @param request HTTP 請求
+     * @return 響應實體
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException (Exception ex, HttpServletRequest request) {
         return createResponseEntity(createErrorResponse(request.getRequestURI(), ex.getMessage()));

@@ -58,11 +58,13 @@ public class PythonProcessHandler {
      * Python 執行檔名稱
      */
     private final String pythonName;
+
     /**
      * 此處理器的辨識 ID
      */
     @Getter
     private final int processHandlerId;
+
     /**
      * 當前處理任務的異步返回值，用於等待 Python 進程的返回結果
      */

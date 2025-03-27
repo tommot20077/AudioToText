@@ -66,6 +66,11 @@ public class FileOutputStrategy {
         return fileWriterMap.get(type);
     }
 
+    /**
+     * 獲取目前可用的輸出格式列表
+     *
+     * @return 輸出格式列表
+     */
     public List<OutputType> getAvailableOutputTypes () {
         return fileWriterMap.keySet().stream().toList();
     }
