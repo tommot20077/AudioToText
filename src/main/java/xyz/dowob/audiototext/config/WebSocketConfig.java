@@ -1,8 +1,9 @@
 package xyz.dowob.audiototext.config;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import xyz.dowob.audiototext.handler.WebsocketHandler;
@@ -19,7 +20,7 @@ import xyz.dowob.audiototext.handler.WebsocketHandler;
  * @Version 1.0
  **/
 @Configuration
-@EnableWebSocket
+@EnableWebSecurity
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
 
@@ -30,14 +31,25 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public final WebsocketHandler websocketHandler;
 
     /**
+     * 安全屬性配置類
+     */
+    private final SecurityProperties securityProperties;
+
+    /**
      * 註冊 WebSocketHandler，設定 WebSocket 的路徑
      * 允許所有來源的請求並支援 SockJS
      *
      * @param registry WebSocket 處理器註冊器
      */
     @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(websocketHandler, "/ws/task").setAllowedOrigins("*");
-        registry.addHandler(websocketHandler, "/sockjs/task").setAllowedOrigins("*").withSockJS();
+    public void registerWebSocketHandlers(@NonNull WebSocketHandlerRegistry registry) {
+        String[] pattern;
+        if (!securityProperties.getCors().isCors() || securityProperties.getCors().getAllowedOriginPatterns().isEmpty()) {
+            pattern = new String[]{"*"};
+        } else {
+            pattern = securityProperties.getCors().getAllowedOriginPatterns().toArray(new String[0]);
+        }
+        registry.addHandler(websocketHandler, "/ws/task").setAllowedOriginPatterns(pattern);
+        registry.addHandler(websocketHandler, "/sockjs/task").setAllowedOrigins(pattern).withSockJS();
     }
 }

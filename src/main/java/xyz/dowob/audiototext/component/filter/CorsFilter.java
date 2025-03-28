@@ -24,10 +24,12 @@ public class CorsFilter implements Filter {
      * OPTIONS 請求
      */
     private static final String OPTIONS = "OPTIONS";
+
     /**
      * 安全設定
      */
     private final SecurityProperties securityProperties;
+
     /**
      * 允許跨域請求的來源
      */

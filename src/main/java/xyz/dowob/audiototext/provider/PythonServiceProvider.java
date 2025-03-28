@@ -37,38 +37,47 @@ import java.util.jar.JarFile;
 @DependsOn("serviceConfig")
 @ConditionalOnProperty(name = "audio.service.enable-punctuation-restoration", havingValue = "true", matchIfMissing = true)
 public class PythonServiceProvider {
+
     /**
      * 線程池，用於管理 Python 處理器的執行緒
      */
     private final ExecutorService pythonExecutor;
+
     /**
-     * 信號量，用於限制 Python 處理器的最大數量
+     * 限制量，用於限制 Python 處理器的最大數量
      */
     private final Semaphore semaphore;
+
     /**
      * 音訊的配置信息，用於獲取 Python 處理器的配置信息
      */
     private final AudioProperties audioProperties;
+
     /**
      * 必要的文件列表，用於檢查資源目錄是否完整
      */
     private static final String[] REQUIRED_FILES = {"PunctuationRestoration.py", "requirements.txt"};
+
     /**
      * 最大 Python 處理器數量，用於限制 Python 處理器的最大數量
      */
     private final int MAX_PROCESSING_NUMBER;
+
     /**
      * Python 腳本目錄，用於 Python 腳本相關資料的目錄
      */
     private final String PYTHON_DIRECTORY;
+
     /**
      * Python 處理器列表，用於保存 Python 處理器，當有任務時，從列表中選擇一個處理器進行處理
      */
     private final List<PythonProcessHandler> processHandlers = new ArrayList<>();
+
     /**
      * 任務隊列，用於保存等待處理的任務，使用併發隊列，保證多線程安全
      */
     private final Queue<PunctuationTaskDTO> TASK_QUEUE = new ConcurrentLinkedQueue<>();
+
     /**
      * Python 程序名稱，用於檢查 Python 環境
      */
@@ -409,7 +418,6 @@ public class PythonServiceProvider {
      * 在銷毀時，關閉所有 Python 處理器
      */
     @PreDestroy
-
     public void destroy () {
         pythonExecutor.shutdown();
         try {

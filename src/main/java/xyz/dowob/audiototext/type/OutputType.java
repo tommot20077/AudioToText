@@ -48,5 +48,4 @@ public enum OutputType {
         }
         return null;
     }
-
 }
