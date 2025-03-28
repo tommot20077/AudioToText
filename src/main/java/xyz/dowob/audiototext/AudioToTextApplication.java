@@ -16,11 +16,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @create 2024-12-18 13:38
  * @Version 1.0
  **/
-@SpringBootApplication
+
+
 @EnableScheduling
+@SpringBootApplication(exclude = {org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class})
 public class AudioToTextApplication {
     public static void main(String[] args) {
         SpringApplication.run(AudioToTextApplication.class, args);
     }
-
 }

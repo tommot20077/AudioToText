@@ -98,9 +98,9 @@ public class AudioProperties {
         private int maxSequenceLength = 512;
 
         /**
-         * 最大 Python 處理進程數量
+         * 最大 Python 處理進程數量，預設為 1
          */
-        private int maxPythonProcess = getMaxProcessors();
+        private int maxPythonProcess = 1;
 
         /**
          * 最大處理時間，單位為秒 預設為 300
@@ -112,16 +112,6 @@ public class AudioProperties {
          * 當任務數量大於{@link #maxPythonProcess}時，會將任務加入列隊等待處理，當列隊數量大於此值時，則會拒絕處理
          */
         private int maxTaskQueue = 100;
-
-        /**
-         * 取得最大處理器數量，若當前處理器數量大於1，則返回當前處理器數量減1，否則返回1
-         *
-         * @return 最大處理器數量
-         */
-        private int getMaxProcessors () {
-            int currentProcessors = Runtime.getRuntime().availableProcessors();
-            return currentProcessors > 1 ? currentProcessors - 1 : 1;
-        }
     }
 
     @Data

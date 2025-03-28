@@ -19,13 +19,13 @@ import java.util.regex.Pattern;
 /**
  * 全局異常處理器，用於處理全局的異常，返回統一的異常信息
  * 實現 ApiController 接口，提供了一些常用的方法
+ *
  * @author yuan
  * @program AudioToText
  * @ClassName GlobalExceptionHandler
  * @create 2025/1/10
  * @Version 1.0
  **/
-
 @ControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler implements ApiController {
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler implements ApiController {
      * @return 響應實體
      */
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<?> handleNoHandlerFoundException (HttpServletRequest request) {
+    public ResponseEntity<?> handleNoHandlerFoundException(HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         if (requestURI.startsWith("/file")) {
             String taskId = pattern.matcher(requestURI).replaceAll("");
@@ -81,12 +81,14 @@ public class GlobalExceptionHandler implements ApiController {
     /**
      * 全局異常處理器，處理 Exception 異常
      * 當發生異常時，返回 500 狀態碼
-     * @param ex 異常
+     *
+     * @param ex      異常
      * @param request HTTP 請求
+     *
      * @return 響應實體
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleException (Exception ex, HttpServletRequest request) {
+    public ResponseEntity<?> handleException(Exception ex, HttpServletRequest request) {
         return createResponseEntity(createErrorResponse(request.getRequestURI(), ex.getMessage()));
     }
 

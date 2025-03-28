@@ -1,0 +1,50 @@
+FROM openjdk:21-jdk-bullseye
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    git \
+    maven \
+    netcat-traditional \
+    unzip \
+    python3 \
+    python3-venv \
+    wget && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /app/config && \
+    mkdir -p /app/logs && \
+    mkdir -p /app/model && \
+    mkdir -p /app/output && \
+    mkdir -p /app/plugin
+
+RUN git clone https://github.com/tommot20077/AudioToText.git source && \
+    cd /app/source && \
+    cp /app/source/docker/config/application.yml /app/config/application.yml && \
+    mvn clean package -DskipTests && \
+    mv target/*.jar /app/app.jar && \
+    rm -rf /app/source && \
+    cd /app
+
+RUN ARCH=$(uname -m) && \
+    case "$ARCH" in \
+        "x86_64")  VOSK_URL="https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-linux-x86_64-0.3.45.zip" ;; \
+        "x86")     VOSK_URL="https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-linux-x86-0.3.45.zip" ;; \
+        "aarch64") VOSK_URL="https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-linux-aarch64-0.3.45.zip" ;; \
+        "armv7l")  VOSK_URL="https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-linux-armv7l-0.3.45.zip" ;; \
+        "riscv64") VOSK_URL="https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-linux-riscv64-0.3.45.zip" ;; \
+        *) echo "Unsupported architecture: $ARCH"; exit 1 ;; \
+    esac && \
+    wget -O /tmp/vosk-linux.zip "$VOSK_URL" && \
+    unzip /tmp/vosk-linux.zip -d /tmp/vosk && \
+    mv /tmp/vosk/*/libvosk.so /usr/lib/ && \
+    chmod +x /usr/lib/libvosk.so && \
+    ldconfig && \
+    rm -rf /tmp/vosk /tmp/vosk-linux.zip
+
+ENV LD_LIBRARY_PATH=/usr/lib:/lib:/usr/local/lib
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+CMD ["java", "-jar", "/app/app.jar"]

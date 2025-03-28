@@ -1,0 +1,71 @@
+version: '3'
+services:
+  audio-app:
+    build:
+      dockerfile: Dockerfile-end
+      context: .
+    container_name: audio-app
+    image: audio-app
+    restart: on-failure:3
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "10880:8080"
+    networks:
+      - my_network
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./model:/app/model
+      - ./output:/app/output
+      - ./plugin:/app/plugin
+    entrypoint: |
+      sh -c '
+      if [ ! -f /app/model/model-info.json ]; then
+        echo "應用程式已啟動，並生成預設配置 /app/model/model-info.json";
+        touch /app/model/model-info.json;
+        exit 0;
+      fi
+      echo "啟動應用程式...";
+      exec java -jar /app/app.jar
+      '
+  audio-web:
+    build:
+      dockerfile: Dockerfile-front
+      context: .
+    container_name: audio-web
+    image: audio-web
+    restart: on-failure:3
+    ports:
+      - "10881:5173"
+    networks:
+      - my_network
+    volumes:
+      - ./config/web:/app/config
+
+
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: audio_to_text
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - my_network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pexample" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  my_network:
+    driver: bridge
+
+volumes:
+  mysql_data:

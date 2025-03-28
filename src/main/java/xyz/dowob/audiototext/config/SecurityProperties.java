@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -30,19 +31,24 @@ public class SecurityProperties {
         private boolean cors = true;
 
         /**
+         * 允許跨域請求的來源，支援正則表達式
+         */
+        private List<String> allowedOriginPatterns = Collections.emptyList();
+
+        /**
          * 允許跨域請求的來源
          */
-        private List<String> allowedOriginPatterns;
+        private List<String> allowedOrigins = Collections.emptyList();
 
         /**
          * 允許跨域請求的方法
          */
-        private List<String> allowedMethods;
+        private List<String> allowedMethods = Collections.emptyList();
 
         /**
          * 允許跨域請求的標頭
          */
-        private List<String> allowedHeaders;
+        private List<String> allowedHeaders = Collections.emptyList();
 
         /**
          * 是否允許跨域請求攜帶認證信息

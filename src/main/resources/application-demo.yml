@@ -1,20 +1,44 @@
 audio:
   path:
-    model-directory: ./model/your_model_name
+    # 放置語音辨識模型的資料夾
+    model-directory: ./model/your_model_directory
+
+    # 暫時存放處理中的音檔的資料夾
     temp-file-directory: ./temp
+
+    # 模型資訊檔案的路徑
+    model-info-path: ./model-info.json
+
+  threshold:
+    # 語音辨識的處理時間上限，超過此時間則會被中斷
+    max-processing-time: 300
+
+    # 語音辨識的最小音檔長度
+    max-python-process: 3
+
+
 spring:
-  application:
-    name: AudioToText
   datasource:
+    # 資料庫連線設定
     driver-class-name: com.mysql.cj.jdbc.Driver
-    password: your_password
+
+    # 資料庫連線網址
     url: jdbc:mysql://localhost:3306/your_db_name
+
+    # 資料庫使用者名稱
     username: your_username
+
+    # 資料庫密碼
+    password: your_password
   servlet:
     multipart:
+      # 上傳檔案的大小限制
       max-file-size: 100MB
+
+      # 上傳檔案的總大小限制
       max-request-size: 100MB
   jpa:
     properties:
       hibernate:
+        # 資料庫方言
         dialect: org.hibernate.dialect.MySQL8Dialect
