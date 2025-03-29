@@ -27,24 +27,13 @@ services:
         touch /app/model/model-info.json;
         exit 0;
       fi
+      if [ ! -f /app/config/application.yml ]; then
+        echo "配置文件不存在，正在複製預設配置...";
+        cp -v /app/temp/application.yml /app/config/application.yml;
+      fi
       echo "啟動應用程式...";
       exec java -jar /app/app.jar
       '
-  audio-web:
-    build:
-      dockerfile: Dockerfile-front
-      context: .
-    container_name: audio-web
-    image: audio-web
-    restart: on-failure:3
-    ports:
-      - "10881:5173"
-    networks:
-      - my_network
-    volumes:
-      - ./config/web:/app/config
-
-
 
   mysql:
     image: mysql:8.0
@@ -53,6 +42,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: example
       MYSQL_DATABASE: audio_to_text
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
     volumes:
       - mysql_data:/var/lib/mysql
     networks:

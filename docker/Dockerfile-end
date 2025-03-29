@@ -16,11 +16,12 @@ RUN mkdir -p /app/config && \
     mkdir -p /app/logs && \
     mkdir -p /app/model && \
     mkdir -p /app/output && \
-    mkdir -p /app/plugin
+    mkdir -p /app/plugin && \
+    mkdir -p /app/temp
 
 RUN git clone https://github.com/tommot20077/AudioToText.git source && \
     cd /app/source && \
-    cp /app/source/docker/config/application.yml /app/config/application.yml && \
+    cp /app/source/docker/config/application.yml /app/temp/application.yml && \
     mvn clean package -DskipTests && \
     mv target/*.jar /app/app.jar && \
     rm -rf /app/source && \

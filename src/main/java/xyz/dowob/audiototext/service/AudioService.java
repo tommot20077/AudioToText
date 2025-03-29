@@ -28,17 +28,19 @@ public interface AudioService {
      *
      * @return 轉換後的物件
      */
-    Object audioToText (MultipartFile file, ModelType modelType, OutputType outputType, boolean isNeedSegment, HttpServletRequest request) throws EncoderException, IOException;
+    Object audioToText(MultipartFile file, ModelType modelType, OutputType outputType, boolean isNeedSegment, HttpServletRequest request) throws EncoderException, IOException;
 
     /**
      * 取得目前可用的轉換模型列表
+     *
+     * @return 可用的轉換模型列表
      */
     List<ModelInfoDTO> getAvailableModels();
 
     /**
      * 取得目前可用的輸出格式列表
+     *
+     * @return 可用的輸出格式列表
      */
-    List<OutputType> getAvailableOutputTypes ();
-
-
+    List<OutputType> getAvailableOutputTypes();
 }

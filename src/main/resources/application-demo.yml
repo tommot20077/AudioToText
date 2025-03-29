@@ -23,7 +23,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
     # 資料庫連線網址
-    url: jdbc:mysql://localhost:3306/your_db_name
+    url: jdbc:mysql://localhost:3306/audio_to_text
 
     # 資料庫使用者名稱
     username: your_username

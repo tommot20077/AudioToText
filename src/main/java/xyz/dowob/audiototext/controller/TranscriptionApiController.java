@@ -7,10 +7,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import xyz.dowob.audiototext.dto.ModelInfoDTO;
+import xyz.dowob.audiototext.dto.TaskStatusDTO;
+import xyz.dowob.audiototext.entity.Task;
 import xyz.dowob.audiototext.service.AudioService;
+import xyz.dowob.audiototext.service.TaskService;
 import xyz.dowob.audiototext.type.ModelType;
 import xyz.dowob.audiototext.type.OutputType;
 
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -36,12 +40,19 @@ public class TranscriptionApiController implements ApiController {
      */
     private final AudioService audioService;
 
+    /**
+     * 任務服務類，處理任務的相關邏輯
+     */
+    private final TaskService taskService;
+
 
     /**
      * 音訊轉文字的 API 接口，接收音訊檔案和模型類型，返回音訊轉文字的結果
      *
      * @param file      音訊檔案
      * @param modelType 模型類型
+     * @param isNeedSegment 是否需要分段
+     * @param formatType 輸出格式類型
      * @param request   HTTP 請求
      *
      * @return 音訊轉文字的結果
@@ -51,7 +62,7 @@ public class TranscriptionApiController implements ApiController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("model") String modelType,
             @RequestParam(value = "is_need_segment", required = false, defaultValue = "true") boolean isNeedSegment,
-            @RequestParam(value = "format_type", required = false) String formatType, HttpServletRequest request) {
+            @RequestParam(value = "format_type") String formatType, HttpServletRequest request) {
         try {
             if (file.isEmpty()) {
                 return createResponseEntity(createErrorResponse(request.getRequestURI(), "檔案為空", 400));
@@ -100,4 +111,33 @@ public class TranscriptionApiController implements ApiController {
         return createResponseEntity(createSuccessResponse(request.getRequestURI(), "取得可用輸出格式成功", availableOutputTypes));
     }
 
+    /**
+     * 取得任務狀態
+     *
+     * @param taskId  任務 ID
+     * @param request HTTP 請求
+     *
+     * @return 任務狀態
+     */
+    @GetMapping("/getTaskStatus")
+    public ResponseEntity<?> getTaskStatus(@RequestParam("task_id") String taskId, HttpServletRequest request) {
+        try {
+            HashMap<String, Object> result = new HashMap<>();
+            Task task = taskService.findTaskByTaskId(taskId, TaskStatusDTO.Status.SUCCESS, TaskStatusDTO.Status.FAILED);
+
+            if (task != null) {
+                result.put("taskId", task.getTaskId());
+                result.put("downloadUrl", task.getDownloadUrl());
+                result.put("status", task.getStatus());
+                result.put("result", task.getResult());
+                return createResponseEntity(createSuccessResponse(request.getRequestURI(), "取得任務狀態成功", result));
+            } else {
+                TaskStatusDTO taskStatus = taskService.getTaskStatus(taskId).orElseThrow(() -> new RuntimeException("任務不存在"));
+                return createResponseEntity(createSuccessResponse(request.getRequestURI(), "取得任務狀態成功", taskStatus));
+            }
+        } catch (Exception e) {
+            log.error("取得任務狀態失敗: ", e);
+            return createResponseEntity(createErrorResponse(request.getRequestURI(), String.format("取得任務狀態失敗: %s", e.getMessage()), 400));
+        }
+    }
 }
