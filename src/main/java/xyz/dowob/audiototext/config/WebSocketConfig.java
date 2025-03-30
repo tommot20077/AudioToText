@@ -3,7 +3,7 @@ package xyz.dowob.audiototext.config;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import xyz.dowob.audiototext.handler.WebsocketHandler;
@@ -20,7 +20,7 @@ import xyz.dowob.audiototext.handler.WebsocketHandler;
  * @Version 1.0
  **/
 @Configuration
-@EnableWebSecurity
+@EnableWebSocket
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
 
@@ -50,6 +50,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
             pattern = securityProperties.getCors().getAllowedOriginPatterns().toArray(new String[0]);
         }
         registry.addHandler(websocketHandler, "/ws/task").setAllowedOriginPatterns(pattern);
-        registry.addHandler(websocketHandler, "/sockjs/task").setAllowedOrigins(pattern).withSockJS();
+        registry.addHandler(websocketHandler, "/sockjs/task").setAllowedOriginPatterns(pattern).withSockJS();
     }
 }
